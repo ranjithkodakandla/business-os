@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { type LucideIcon, TrendingUp, Wallet, ClipboardList, Users, CheckCircle2, AlertTriangle, Lightbulb, Compass, ChevronRight, Bot, Inbox, Sparkles, Handshake, ShoppingCart, Boxes, Factory, Truck, IndianRupee, BarChart3, Plug, ArrowUpRight, ArrowLeft, SquarePen, X, Mail, MessageCircle, PhoneCall, Cpu, LayoutGrid, PackageSearch, ShieldCheck, Contact, Calculator, CalendarDays, MessageSquareText, Clock } from 'lucide-react';
 import { useStore } from '../lib/store';
+import { MessagesSquare, Coins, FileCheck2, CalendarClock } from 'lucide-react';
+import { can } from '../lib/rbac';
+import { payTotals } from '../lib/p0actions';
 import { cash, kpis, available } from '../lib/domain';
 import { lakh } from '../lib/format';
 import { greeting, Lang } from '../lib/i18n';
@@ -412,7 +415,24 @@ export default function Home() {
       primary: { label: 'Try Live sourcing', to: '/sourcing/live', icon: Sparkles }, secondary: [{ label: 'Manage agents', to: '/agents' }, { label: 'Guided walkthrough', onClick: startGuide }],
     },
   ];
-  const open = cards.find((x) => x.key === openKey) || null;
+  const PT = payTotals(s); const openT = s.p0.tickets.filter((x) => x.status !== 'Resolved'); const irnP = s.p0.einv.filter((x) => x.irn !== 'Generated');
+  cards.splice(6, 0,
+    { key: 'inbox', title: 'Customer inbox', icon: MessagesSquare, tone: 'rose', headline: openT.length, unit: 'open tickets', sub: <span className="text-rose-600">{openT.filter((x) => x.slaHrs - x.ageHrs < 0).length} past SLA · {openT.filter((x) => x.kind === 'Complaint').length} complaints</span>,
+      visual: <div className="flex gap-1">{openT.slice(0, 5).map((x) => <span key={x.id} className={cx('h-8 flex-1 rounded-md', x.priority === 'High' ? 'bg-rose-400' : 'bg-rose-200')} />)}</div>, blurb: 'WhatsApp, email, groups and calls become tickets with SLA timers.',
+      body: <Rows items={openT.map((x) => ({ text: `${x.id} · ${x.subject}`, sub: `${x.customer} · ${x.channel} · ${x.status}`, to: '/inbox' }))} dot="bg-rose-500" empty="No open tickets." />, primary: { label: 'Open inbox', to: '/inbox', icon: MessagesSquare }, secondary: [{ label: 'Complaints', to: '/inbox' }] },
+    { key: 'payroll', title: 'Payroll', icon: Coins, tone: 'violet', headline: lakh(PT.net), unit: `net · ${s.p0.payrun.month}`, sub: <span className="text-slate-500">{s.p0.payrun.status} · PF {lakh(PT.pf * 2)} · {PT.lop} LOP days</span>,
+      visual: <div className="flex items-end gap-1">{[0.82, 0.86, 0.9, 0.88, 0.95, 1].map((v, i) => <span key={i} className="w-full rounded-t bg-violet-300" style={{ height: v * 36 }} />)}</div>, blurb: 'Pay run, statutory dues and advances.',
+      body: <Rows items={[{ text: `Pay run ${s.p0.payrun.month}: ${s.p0.payrun.status}`, sub: `${PT.heads} employees · gross ${lakh(PT.gross)}`, to: '/payroll' }, { text: `PF + ESI due 15 Nov: ${lakh(PT.pf * 2 + PT.esi)}`, sub: 'Statutory', to: '/payroll?tab=Statutory' }, ...s.p0.advances.filter((a) => a.status === 'Active').map((a) => ({ text: `${a.name}: advance ${lakh(a.amount)}`, sub: `${a.months} months`, to: '/payroll?tab=Advances%20%26%20loans' }))]} dot="bg-violet-500" empty="" />, primary: { label: 'Open payroll', to: '/payroll', icon: Coins }, secondary: [] },
+    { key: 'gst', title: 'GST & e-invoice', icon: FileCheck2, tone: 'amber', headline: irnP.length, unit: 'IRNs pending', sub: <span className="text-amber-700">{s.p0.einv.filter((x) => x.ewbStatus === 'Expiring').length} e-way bill expiring today</span>,
+      visual: <div className="flex gap-1">{s.p0.einv.map((x) => <span key={x.inv} className={cx('h-8 flex-1 rounded-md', x.irn === 'Generated' ? 'bg-emerald-300' : x.irn === 'Failed' ? 'bg-rose-400' : 'bg-amber-300')} />)}</div>, blurb: 'IRN/QR, e-way validity and GSTR-1/3B.',
+      body: <Rows items={irnP.map((x) => ({ text: `${x.inv}: IRN ${x.irn.toLowerCase()}`, sub: `${x.customer}`, to: '/gst' }))} dot="bg-amber-500" empty="All IRNs generated." />, primary: { label: 'Open GST', to: '/gst', icon: FileCheck2 }, secondary: [] },
+    { key: 'attendance', title: 'Attendance & leave', icon: CalendarClock, tone: 'sky', headline: `${k.present}/${k.employees}`, unit: 'present today', sub: <span className="text-slate-500">{s.p0.leaves.filter((l) => l.status === 'Pending').length} leave requests · {s.p0.ot.reduce((a, o) => a + o.hrs, 0)}h OT this week</span>,
+      visual: <Donut size={40} parts={[{ v: k.present, c: '#0ea5e9' }, { v: k.employees - k.present, c: 'rgb(var(--slate-200))' }]} />, blurb: 'Muster roll, leave, OT and contract labour.',
+      body: <Rows items={s.p0.leaves.map((l) => ({ text: `${l.name}: ${l.type}`, sub: `${l.from} → ${l.to} · ${l.status}`, to: '/attendance?tab=Leave' }))} dot="bg-sky-500" empty="" />, primary: { label: 'Open attendance', to: '/attendance', icon: CalendarClock }, secondary: [] },
+  );
+  const CARD_MOD: Record<string, string> = { sourcing: 'suppliers', watch: 'orders', next: 'home', money: 'finance', team: 'home', good: 'reports', channels: 'integrations', modules: 'home' };
+  const shown = cards.filter((x) => can(s, CARD_MOD[x.key] || x.key));
+  const open = shown.find((x) => x.key === openKey) || null;
 
   const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(new Date()));
   const today = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date());
@@ -470,7 +490,7 @@ export default function Home() {
           {actionPills.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid="action-items" aria-label="Your action items for today">{actionPills.map((p) => <button key={p.k} onClick={() => setParam('card', p.k)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-medium text-slate-700 transition hover:border-brand-300"><span className={cx('h-1.5 w-1.5 rounded-full', p.c)} />{p.t}</button>)}</div>}
         </div>
         <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4" data-testid="needs-you">
-          {cards.map((x, i) => <GlanceCard key={x.key} c={x} i={i} onOpen={() => setParam('card', x.key)} />)}
+          {shown.map((x, i) => <GlanceCard key={x.key} c={x} i={i} onOpen={() => setParam('card', x.key)} />)}
         </div>
         <div className="mt-6 text-center"><button className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" data-testid="start-guide" onClick={startGuide}><Compass size={14} />Guided walkthrough</button></div>
       </section>

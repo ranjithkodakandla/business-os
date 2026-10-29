@@ -23,3 +23,13 @@ export const greeting = (lang: Lang, d = new Date()) => {
   return ({ en: ['Good morning, Riya', 'Good afternoon, Riya', 'Good evening, Riya'], hi: ['सुप्रभात, रिया', 'नमस्ते, रिया', 'शुभ संध्या, रिया'], te: ['శుభోదయం, రియా', 'శుభ మధ్యాహ్నం, రియా', 'శుభ సాయంత్రం, రియా'] } as Record<Lang, string[]>)[lang][p];
 };
 export const GREETING: Record<Lang, string> = { en: greeting('en'), hi: greeting('hi'), te: greeting('te') };
+/** Key UI strings for the new modules (EN / Hindi / Telugu). */
+const STR: Record<string, [string, string, string]> = {
+  approve: ['Approve', 'मंज़ूर करें', 'ఆమోదించు'], reject: ['Reject', 'अस्वीकार', 'తిరస్కరించు'], save: ['Save', 'सेव करें', 'సేవ్ చేయి'], cancel: ['Cancel', 'रद्द करें', 'రద్దు'],
+  total: ['Total', 'कुल', 'మొత్తం'], status: ['Status', 'स्थिति', 'స్థితి'], employees: ['Employees', 'कर्मचारी', 'ఉద్యోగులు'], net: ['Net pay', 'शुद्ध वेतन', 'నికర జీతం'],
+  gross: ['Gross pay', 'सकल वेतन', 'స్థూల జీతం'], open: ['Open', 'खुले', 'తెరిచినవి'], present: ['Present', 'उपस्थित', 'హాజరు'], absent: ['Absent', 'अनुपस्थित', 'గైర్హాజరు'],
+  onLeave: ['On leave', 'छुट्टी पर', 'సెలవులో'], pending: ['Pending', 'लंबित', 'పెండింగ్'], restricted: ['Not in your access – ask an admin', 'आपकी पहुँच में नहीं – एडमिन से पूछें', 'మీ యాక్సెస్‌లో లేదు – అడ్మిన్‌ని అడగండి'],
+  askAnything: ['Ask anything…', 'कुछ भी पूछें…', 'ఏదైనా అడగండి…'], role: ['Role', 'भूमिका', 'పాత్ర'], users: ['Users', 'यूज़र', 'వినియోగదారులు'], permissions: ['Permissions', 'अनुमतियाँ', 'అనుమతులు'],
+  runPayroll: ['Run payroll', 'वेतन चलाएँ', 'జీతాలు నడపండి'], tickets: ['Tickets', 'टिकट', 'టిక్కెట్లు'], done: ['Done', 'हो गया', 'పూర్తయింది'],
+};
+export const t = (lang: Lang, k: string) => { const r = STR[k]; return r ? r[lang === 'en' ? 0 : lang === 'hi' ? 1 : 2] : k; };

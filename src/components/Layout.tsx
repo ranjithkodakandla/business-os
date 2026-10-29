@@ -253,9 +253,11 @@ function GlobalSearch() {
     ...s.pos.map((p) => ({ type: 'Purchase order', id: p.id, label: `${p.id} · ${supplierById(p.supplierId).name}`, to: `/procurement?tab=Purchase%20orders` })),
     ...s.employees.map((e) => ({ type: 'Employee', id: e.id, label: `${e.name} · ${e.role}`, to: `/people/${e.id}` })),
     ...s.challans.map((c) => ({ type: 'Job work challan', id: c.id, label: `${c.id} · ${jobWorkers.find((j) => j.id === c.workerId)!.name}`, to: `/job-work?tab=Material%20out` })),
+    ...s.p0.tickets.map((k) => ({ type: 'Ticket', id: k.id, label: `${k.id} · ${k.customer} · ${k.subject}`, to: '/inbox' })),
     ...s.workOrders.map((w) => ({ type: 'Work order', id: w.id, label: `${w.id} · ${w.op} (${w.order})`, to: `/operations?tab=Work%20orders` })),
   ], [s]);
-  const res = q.trim().length < 2 ? [] : index.filter((r) => (r.label + ' ' + r.type).toLowerCase().includes(q.toLowerCase())).slice(0, 8);
+  const KM: Record<string, string> = { Order: 'orders', Customer: 'sales', Invoice: 'finance', Item: 'inventory', 'Purchase request': 'procurement', 'Purchase order': 'procurement', Employee: 'people', 'Job work challan': 'jobwork', 'Work order': 'operations', Ticket: 'inbox' };
+  const res = q.trim().length < 2 ? [] : index.filter((r) => can(s, KM[r.type] || 'home')).filter((r) => (r.label + ' ' + r.type).toLowerCase().includes(q.toLowerCase())).slice(0, 8);
   return (
     <div className="relative">
       <label className="hidden h-9 w-[380px] items-center md:flex xl:w-[400px] lg:w-[300px] md:w-[220px] gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-3 shadow-sm transition focus-within:border-brand-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-500/10">

@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUp, Loader2, CheckCircle2, CornerDownRight, Sparkles, Bot, Database, Mic, Square, MessageCircleQuestion } from 'lucide-react';
 import { domainOf, domainView, snapshot, isSpecific, validateView, type GenBlock } from '../lib/domainViews';
+import { ModCardView } from './ModCard';
+import { modIntent, fillCard, scopeOf, denied, type ModCard } from '../lib/modAgent';
+import { can, roleOf, ROLE_USER, DOMAIN_MODULE } from '../lib/rbac';
+import { MODULES } from '../lib/nav';
 import { looksLikeData, parseRules, merge, build, catalog, mergeAnswers, looksLikeAnswers, type Intent as DataIntent } from '../lib/dataAgent';
 import { DataView } from './DataViews';
 import { useStore } from '../lib/store';
@@ -85,7 +89,7 @@ function BlockView({ b }: { b: Block }) {
         <div className="px-3.5 pb-2.5 pt-1 text-[11.5px] text-slate-400">Reply in one message with what you know – skip anything optional.</div>
       </div>
     );
-  if (b.type === 'data') return null;
+  if (b.type === 'data' || b.type === 'mod') return null;
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
       <table className="w-full text-[12.5px]">
@@ -140,7 +144,7 @@ function Answer({ r, msgId }: { r: Resp; msgId: number }) {
   return (
     <div className="fadein space-y-2.5" data-answer={msgId}>
       {r.title && <div className="text-[15px] font-semibold leading-snug tracking-tight text-slate-900">{r.title}</div>}
-      {r.blocks.map((b, i) => b.type === 'data' ? <DataView key={i} r={b.r} msgId={msgId} idx={i} /> : <BlockView key={i} b={b} />)}
+      {r.blocks.map((b, i) => b.type === 'data' ? <DataView key={i} r={b.r} msgId={msgId} idx={i} /> : b.type === 'mod' ? <ModCardView key={i} c={b.c} msgId={msgId} idx={i} /> : <BlockView key={i} b={b} />)}
       {r.sources.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-2xs text-slate-400">
           <Database size={12} /> Based on
@@ -187,6 +191,20 @@ export function useChat() {
     const answers = looksLikeAnswers(t);
     const fresh = !answers && /^(show|list|add|update|change|create|hire|onboard|what|who|how|why|when|which|where|hi|hey|hello|need|i need|mark|received|get|find|give)\b/i.test(t);
     let followUp = false;
+    const putMod = (c: ModCard) => put0({ title: '', blocks: [{ type: 'mod', c }], sources: [], actions: [], links: [] });
+    // A pending AI action card (payroll, users, approvals, GST, leave…) takes the follow-up as its answer.
+    const modPend = lastAi?.resp ? lastAi.resp.blocks.findIndex((b) => b.type === 'mod' && b.c.status === 'pending' && b.c.kind === 'action') : -1;
+    if (modPend >= 0 && !(fresh && modIntent(t, s))) {
+      const b = lastAi!.resp!.blocks[modPend] as Extract<Block, { type: 'mod' }>;
+      const next = fillCard(b.c, t, s);
+      if (next) { update((d) => { const bb = d.chat.find((x) => x.id === lastAi!.id)?.resp?.blocks[modPend]; if (bb && bb.type === 'mod') bb.c.status = 'replaced'; }); putMod(next); return true; }
+    }
+    // Role scope: politely refuse anything outside the signed-in role's modules (Owner sees all).
+    const rulesTool = parseRules(t)?.tool || '';
+    const sk = scopeOf(t) || ({ add_person: 'people', add_supplier: 'suppliers', receive_stock: 'inventory' } as Record<string, string>)[rulesTool];
+    if (sk && !can(s, sk)) { putMod(denied(s, sk)); return true; }
+    const mc = !(pendIdx >= 0 && !fresh) ? modIntent(t, s) : null;
+    if (mc) { putMod(can(s, mc.module) ? mc : denied(s, mc.module)); return true; }
     if (pendIdx >= 0 && !fresh) {
       const b = lastAi!.resp!.blocks[pendIdx] as Extract<Block, { type: 'data' }>;
       const next = mergeAnswers(b.r, t, s);
@@ -207,6 +225,7 @@ export function useChat() {
     const pre = parseRules(t);
     const mutation = pre && ['add_person', 'add_supplier', 'receive_stock', 'update_record'].includes(pre.tool);
     const dom = !mutation && (!/\b(suppliers?|vendors?)\b/i.test(t) || /\b(rejections?|quality|defects?)\b/i.test(t)) ? domainOf(t, s) : null;
+    if (dom && !can(s, DOMAIN_MODULE[dom.domain] || dom.domain)) { putMod(denied(s, DOMAIN_MODULE[dom.domain] || dom.domain)); return true; }
     if (dom) {
       const base = domainView(dom.domain, s, dom.name);
       const show = (r: unknown) => put0({ title: '', blocks: [{ type: 'data', r: r as never }], sources: [], actions: [], links: [] });
@@ -246,8 +265,9 @@ export function useChat() {
     const isLive = r.blocks.some((b) => b.type === 'live'); const generic = general || r.title === 'Here is what I can help with';
     if (!followUp && !isLive && !generic) { setTimeout(() => put(r), 450); return; } // a known business question: answer from the data
     // Everything else goes through the AI first: small talk, questions, vague and clear sourcing needs.
-    const context = bizContext(s);
-    const history = s.chat.slice(-12).flatMap((m): Turn[] => m.role === 'user' ? [{ role: 'user' as const, text: m.text }] : m.resp ? [{ role: 'ai' as const, text: [m.resp.title, ...m.resp.blocks.map((b) => ('text' in b ? b.text : b.type === 'data' ? b.r.headline : b.type === 'ask' ? 'Asked: ' + b.items.map((x) => x.q).join(' / ') : ''))].filter(Boolean).join(' ').slice(0, 300) }] : []);
+    const LN = { en: '', hi: 'Hindi (Devanagari script)', te: 'Telugu (Telugu script)' }[s.lang];
+    const context = bizContext(s) + `\nSigned-in user: ${ROLE_USER[roleOf(s)].name}, role ${roleOf(s)}. They may only see: ${MODULES.filter((m) => can(s, m.key)).map((m) => m.label.en).join(', ')}. If asked about anything else, reply: "Not in your access – ask an admin."` + (LN ? `\nIMPORTANT: Reply in ${LN}.` : '');
+    const history = s.chat.slice(-12).flatMap((m): Turn[] => m.role === 'user' ? [{ role: 'user' as const, text: m.text }] : m.resp ? [{ role: 'ai' as const, text: [m.resp.title, ...m.resp.blocks.map((b) => ('text' in b ? b.text : b.type === 'data' ? b.r.headline : b.type === 'mod' ? b.c.headline + (b.c.fields ? ' Fields: ' + b.c.fields.map((f) => `${f.label}=${f.value || '?'}`).join(', ') : '') : b.type === 'ask' ? 'Asked: ' + b.items.map((x) => x.q).join(' / ') : ''))].filter(Boolean).join(' ').slice(0, 300) }] : []);
     // If the connection drops, keep the message and try again once it's back (the Reconnecting pill shows meanwhile).
     const assist = async (): Promise<Intent> => { for (let k = 0; ; k++) { try { return await live.assist(t, context, history); } catch (e) { if (!(e instanceof Offline) || k >= 20) throw e; await new Promise((r) => setTimeout(r, 3000)); } } };
     const cap = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('slow')), 25000));
@@ -274,9 +294,10 @@ function useVoice(q: string, setQ: (v: string) => void) {
   const stop = () => { rec.current?.stop(); };
   const start = () => {
     const W = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR };
+    const langRef = { current: (JSON.parse(localStorage.getItem('business-workspace-demo-v5') || '{}').lang || 'en') as string };
     const C = W.SpeechRecognition || W.webkitSpeechRecognition;
     if (!C) { toast('Voice input needs Chrome, Edge or Safari – you can type instead', 'amber'); return; }
-    const r = new C(); r.lang = 'en-IN'; r.interimResults = true; r.continuous = true;
+    const r = new C(); r.lang = ({ en: 'en-IN', hi: 'hi-IN', te: 'te-IN' } as Record<string, string>)[langRef.current] || 'en-IN'; r.interimResults = true; r.continuous = true;
     base.current = q ? q.replace(/\s*$/, ' ') : '';
     let fin = '';
     r.onresult = (e) => { let interim = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) fin += x[0].transcript + ' '; else interim += x[0].transcript; } setQ((base.current + fin + interim).replace(/\s+/g, ' ').trim()); };
