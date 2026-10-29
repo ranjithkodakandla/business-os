@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+server/data*/
+server/scratch/
+verify/shots/
+video/
+.env*
+*.log
