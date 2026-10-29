@@ -31,5 +31,13 @@ with sync_playwright() as p:
     th=pg.locator('[data-testid=chat-thread]').inner_text(); k=th.rfind(q); last=th[k+len(q):] if k>=0 else '(message not sent)'
     ok(f'chat: {q}',want.lower() in last.lower() and '\n• ' not in last,last.replace('\n',' | ')[:110])
   pg.screenshot(path=f'{out}/chat.png',full_page=True)
+  # role scope: Sales cannot open Bank & TDS or ask for TDS in chat, but can ask what ships today
+  pg.locator('[data-testid=profile-menu]').click(); pg.wait_for_timeout(300); pg.locator('[data-role=Sales]').first.click(); pg.wait_for_timeout(800)
+  pg.goto(P+'/#/bank-tds'); pg.wait_for_timeout(700); ok('Sales: /bank-tds restricted',pg.locator('[data-testid=restricted]').count()>0)
+  pg.goto(P+'/#/dispatch'); pg.wait_for_timeout(700); ok('Sales: /dispatch allowed',pg.locator('[data-page=dispatch]').count()>0)
+  pg.goto(P+'/#/'); pg.wait_for_timeout(1000)
+  for q,want in [('TDS due by 7th?','not in your access'),('What ships today?','dispatches today')]:
+    pg.fill('[data-testid=composer]',q); pg.keyboard.press('Enter'); pg.wait_for_timeout(1200)
+    th=pg.locator('[data-testid=chat-thread]').inner_text(); ok(f'Sales chat: {q}',want in th[th.rfind(q):].lower())
   ok('no page errors',not errs,'; '.join(errs)[:300])
 print(f'{sum(res)}/{len(res)} passed')
