@@ -13,6 +13,9 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 COPY server/src ./server/src
 COPY server/tsconfig.json ./server/
+# server reuses shared modules from the frontend source (src/lib)
+COPY src ./src
+COPY tsconfig.json ./
 COPY --from=web /app/dist ./dist
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/data
 RUN mkdir -p /data

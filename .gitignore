@@ -7,3 +7,4 @@ verify/shots/
 video/
 .env*
 *.log
+cloudrun.env.yaml
