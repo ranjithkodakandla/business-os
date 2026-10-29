@@ -149,29 +149,32 @@ function runExpense(a: Pending['args']): View {
 }
 
 const FRESH = /^(show|list|what|who|how|why|when|which|where|hi|hey|hello|find|get|give|open|reconcile|tds|plan|log|claim|approve|daily|brief)\b/i;
-export function p1Answer(t: string): View | null {
+const NAMES: Record<string, string> = { bom: 'BOM & Production', qc: 'Quality control', bank: 'Bank & TDS', expenses: 'Expenses', dispatch: 'Dispatch', notifications: 'Notifications', documents: 'Documents' };
+export function p1Answer(t: string, allow: (moduleKey: string) => boolean = () => true): View | null {
+  // role scope: a command for a module outside the user's role is refused before anything runs or changes
+  const G = (key: string, run: () => View): View => { if (allow(key)) return run(); pending = null; return v('restricted', 'Not in your access', `That’s part of ${NAMES[key]}, which isn’t in your role. Ask an admin (Owner) to grant access in Settings → Permissions.`, { actions: [{ label: 'Back to Home', kind: 'open:/' }] }); };
   const x = t.trim();
   if (/^(cancel|stop|never ?mind|forget it)\b/i.test(x) && pending) { pending = null; return v('notice', 'Cancelled', 'Okay, cancelled – nothing was saved.', {}); }
   // a reply to the question on the last card finishes that command
   if (pending && !FRESH.test(x)) {
     const a = { ...pending.args };
-    if (pending.tool === 'plan') { a.qty = a.qty || numOf(x); a.code = a.code || productOf(x); return runPlan(a); }
-    if (pending.tool === 'reject') { a.lot = a.lot || lotOf(x); const n = numOf(x.replace(/\bL-?\d+/i, '')); a.qty = a.qty || n; a.defect = a.defect || defectOf(x) || (x.replace(/[\d,.₹]+/g, '').replace(/\b(lot|rejects?|nos|pcs|for)\b/gi, '').trim() || undefined); return runReject(a); }
-    if (pending.tool === 'expense') { a.amount = a.amount || numOf(x); a.desc = a.desc || x.replace(/₹|rs\.?|inr/gi, '').replace(/[\d,]+(\.\d+)?/, '').replace(/^\s*(for|on)\s+/i, '').trim() || undefined; return runExpense(a); }
+    if (pending.tool === 'plan') { a.qty = a.qty || numOf(x); a.code = a.code || productOf(x); return G('bom', () => runPlan(a)); }
+    if (pending.tool === 'reject') { a.lot = a.lot || lotOf(x); const n = numOf(x.replace(/\bL-?\d+/i, '')); a.qty = a.qty || n; a.defect = a.defect || defectOf(x) || (x.replace(/[\d,.₹]+/g, '').replace(/\b(lot|rejects?|nos|pcs|for)\b/gi, '').trim() || undefined); return G('qc', () => runReject(a)); }
+    if (pending.tool === 'expense') { a.amount = a.amount || numOf(x); a.desc = a.desc || x.replace(/₹|rs\.?|inr/gi, '').replace(/[\d,]+(\.\d+)?/, '').replace(/^\s*(for|on)\s+/i, '').trim() || undefined; return G('expenses', () => runExpense(a)); }
   }
-  if (/\b(plan|schedule|make|produce)\b.*\b(housings?|brackets?|a-?17|b-?0?4)\b/i.test(x)) { pending = null; return runPlan({ qty: numOf(x.replace(/\ba-?17\b|\bb-?0?4\b/gi, '')), code: productOf(x) }); }
-  if (/\b(plan|schedule)\b.*\b(production|next week)\b/i.test(x)) return runPlan({ qty: numOf(x), code: productOf(x) });
-  if (/\b(bom|bill of materials?)\b/i.test(x)) return bomView(productOf(x) || 'FG-A17');
-  if (/\b(log|record|enter|book)\b.*\b(rejects?|rejections?|defects?|ncr)\b/i.test(x) || /\b\d+\s+rejects?\b/i.test(x)) { pending = null; return runReject({ qty: numOf(x.replace(/\bL-?\d+/i, '')), lot: lotOf(x), defect: defectOf(x.replace(/\blot\s*L-?\d+/i, '')) }); }
-  if (/\b(supplier (quality )?scores?|quality scores?|ncrs?|capa|rejection trend|qc status|quality (overview|status))\b/i.test(x)) return qualityView();
-  if (/\breconcil/i.test(x)) return reconView(/\bicici\b/i.test(x) ? 'ICICI' : 'HDFC', 'October');
-  if (/\btds\b|\b26q\b|\b194[cjiq]\b/i.test(x)) return tdsView();
-  if (/\bapprove\b.*\b(expenses?|claims?)\b/i.test(x)) return expenseApproveAll();
-  if (/\b(claim|reimburse|expense)\b/i.test(x) && (/\d|\b(add|new|submit|file)\b/i.test(x) || /^(claim|reimburse|submit|file|add)\b/i.test(x)) && !/\b(show|list|pending)\b/i.test(x)) { pending = null; const amt = numOf(x); const desc = x.replace(/₹|rs\.?|inr/gi, '').replace(/\b(add|new|submit|file|an?|my|claim|expense|reimbursement|reimburse|for|of|me)\b/gi, ' ').replace(/[\d,]+(\.\d+)?/, ' ').replace(/\s+/g, ' ').trim(); return runExpense({ amount: amt, desc: desc || undefined }); }
-  if (/\b(expenses?|claims?|reimbursements?)\b/i.test(x)) return expensesView();
-  if (/\b(ships?|shipping|dispatch(es|ed)?|going out|trucks?)\b.*\b(today|now)\b|\bwhat ships\b|\bdispatch (plan|status)\b|\b(pod|lr)s?\b/i.test(x)) return shipsTodayView();
-  if (/\b(daily brief|morning brief|my brief|notifications?|alerts?|compliance calendar|what'?s due|due dates?)\b/i.test(x)) return briefView();
-  if (/\b(find|search|where is|show)\b.*\b(certificate|mtc|drawing|document|docs?|report|contract|pod|file)\b/i.test(x)) return findDocView(x);
+  if (/\b(plan|schedule|make|produce)\b.*\b(housings?|brackets?|a-?17|b-?0?4)\b/i.test(x)) { pending = null; return G('bom', () => runPlan({ qty: numOf(x.replace(/\ba-?17\b|\bb-?0?4\b/gi, '')), code: productOf(x) })); }
+  if (/\b(plan|schedule)\b.*\b(production|next week)\b/i.test(x)) return G('bom', () => runPlan({ qty: numOf(x), code: productOf(x) }));
+  if (/\b(bom|bill of materials?)\b/i.test(x)) return G('bom', () => bomView(productOf(x) || 'FG-A17'));
+  if (/\b(log|record|enter|book)\b.*\b(rejects?|rejections?|defects?|ncr)\b/i.test(x) || /\b\d+\s+rejects?\b/i.test(x)) { pending = null; return G('qc', () => runReject({ qty: numOf(x.replace(/\bL-?\d+/i, '')), lot: lotOf(x), defect: defectOf(x.replace(/\blot\s*L-?\d+/i, '')) })); }
+  if (/\b(supplier (quality )?scores?|quality scores?|ncrs?|capa|rejection trend|qc status|quality (overview|status))\b/i.test(x)) return G('qc', () => qualityView());
+  if (/\breconcil/i.test(x)) return G('bank', () => reconView(/\bicici\b/i.test(x) ? 'ICICI' : 'HDFC', 'October'));
+  if (/\btds\b|\b26q\b|\b194[cjiq]\b/i.test(x)) return G('bank', () => tdsView());
+  if (/\bapprove\b.*\b(expenses?|claims?)\b/i.test(x)) return G('expenses', () => expenseApproveAll());
+  if (/\b(claim|reimburse|expense)\b/i.test(x) && (/\d|\b(add|new|submit|file)\b/i.test(x) || /^(claim|reimburse|submit|file|add)\b/i.test(x)) && !/\b(show|list|pending)\b/i.test(x)) { pending = null; const amt = numOf(x); const desc = x.replace(/₹|rs\.?|inr/gi, '').replace(/\b(add|new|submit|file|an?|my|claim|expense|reimbursement|reimburse|for|of|me)\b/gi, ' ').replace(/[\d,]+(\.\d+)?/, ' ').replace(/\s+/g, ' ').trim(); return G('expenses', () => runExpense({ amount: amt, desc: desc || undefined })); }
+  if (/\b(expenses?|claims?|reimbursements?)\b/i.test(x)) return G('expenses', () => expensesView());
+  if (/\b(ships?|shipping|dispatch(es|ed)?|going out|trucks?)\b.*\b(today|now)\b|\bwhat ships\b|\bdispatch (plan|status)\b|\b(pod|lr)s?\b/i.test(x)) return G('dispatch', () => shipsTodayView());
+  if (/\b(daily brief|morning brief|my brief|notifications?|alerts?|compliance calendar|what'?s due|due dates?)\b/i.test(x)) return G('notifications', () => briefView());
+  if (/\b(find|search|where is|show)\b.*\b(certificate|mtc|drawing|document|docs?|report|contract|pod|file)\b/i.test(x)) return G('documents', () => findDocView(x));
   return null;
 }
 export type { P1State };

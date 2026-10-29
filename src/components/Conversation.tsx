@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUp, Loader2, CheckCircle2, CornerDownRight, Sparkles, Bot, Database, Mic, Square, MessageCircleQuestion } from 'lucide-react';
 import { domainOf, domainView, snapshot, isSpecific, validateView, type GenBlock } from '../lib/domainViews';
+import { p1Answer } from '../lib/p1Agent';
+import { can } from '../lib/rbac';
 import { looksLikeData, parseRules, merge, build, catalog, mergeAnswers, looksLikeAnswers, type Intent as DataIntent } from '../lib/dataAgent';
 import { DataView } from './DataViews';
 import { useStore } from '../lib/store';
@@ -180,6 +182,7 @@ export function useChat() {
     // and the answer is structured UI that ends in a confirm card before anything changes.
     // Any question about business data → a visual card (KPIs, charts, tables, status items), never bullet text.
     // Conversation context: a reply to the card or question just above is an ANSWER, not a new question – no instant keyword card may hijack it.
+    { const p1 = p1Answer(t, (k) => can(s, k)); if (p1) { put0({ title: '', blocks: [{ type: 'data', r: p1 }], sources: [], actions: [], links: [] }); return true; } } // P1/P2 module commands (BOM, QC, bank/TDS, expenses, dispatch, alerts, documents)
     const lastAi = [...s.chat].reverse().find((m) => m.role === 'system' && m.resp);
     const lastIdx = lastAi ? s.chat.indexOf(lastAi) : -1;
     const pendIdx = lastAi?.resp ? lastAi.resp.blocks.findIndex((b) => b.type === 'data' && 'status' in b.r && b.r.status === 'pending' && (b.r.kind === 'add_person' || b.r.kind === 'add_supplier')) : -1;

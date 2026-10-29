@@ -9,6 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Home, Inbox, Handshake, ClipboardList, ShoppingCart, Boxes, Factory, Users, IndianRupee, BarChart3, Truck, Bot, Plug, Sparkles, Contact,
   Wallet, MessagesSquare, FileCheck2, CalendarClock, History, Settings, Coins,
+  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen,
 } from 'lucide-react';
 import type { Lang } from './i18n';
 export type Group = 'Overview' | 'Sell' | 'Make' | 'Buy' | 'Stock' | 'People' | 'Money' | 'Service' | 'Admin';
@@ -38,6 +39,14 @@ export const MODULES: NavItem[] = [
   { key: 'collections', to: '/collections', icon: Wallet, group: 'Money', label: L('Collections', 'वसूली', 'వసూళ్లు'), desc: 'Overdue receivables and follow-ups' },
   { key: 'gst', to: '/gst', icon: FileCheck2, group: 'Money', label: L('GST & e-invoice', 'GST और ई-इनवॉइस', 'GST & ఈ-ఇన్వాయిస్'), desc: 'IRN, e-way bills, GSTR-1/3B' },
   { key: 'reports', to: '/reports', icon: BarChart3, group: 'Money', label: L('Reports', 'रिपोर्ट', 'నివేదికలు'), desc: 'Sales, margin and cash reports' },
+  // P1/P2 modules (pages in src/pages/P1Modules.tsx)
+  { key: 'bom', to: '/production', icon: Cog, group: 'Make', label: L('BOM & Production', 'BOM और उत्पादन', 'BOM & ఉత్పత్తి'), desc: 'BOMs, MRP shortfall, work orders, cost vs plan' },
+  { key: 'qc', to: '/quality', icon: ShieldCheck, group: 'Make', label: L('Quality control', 'गुणवत्ता', 'నాణ్యత'), desc: 'Inspections, NCR/CAPA, supplier scores' },
+  { key: 'dispatch', to: '/dispatch', icon: PackageCheck, group: 'Stock', label: L('Dispatch', 'डिस्पैच', 'డిస్పాచ్'), desc: 'Dispatch plan, packing, LR, POD' },
+  { key: 'bank', to: '/bank-tds', icon: Landmark, group: 'Money', label: L('Bank & TDS', 'बैंक और TDS', 'బ్యాంక్ & TDS'), desc: 'Bank reconciliation, TDS register, 26Q' },
+  { key: 'expenses', to: '/expenses', icon: Receipt, group: 'Money', label: L('Expenses', 'ख़र्चे', 'ఖర్చులు'), desc: 'Claims with receipts, approvals, payout' },
+  { key: 'notifications', to: '/notifications', icon: Bell, group: 'Overview', label: L('Notifications', 'सूचनाएँ', 'నోటిఫికేషన్లు'), desc: 'Alerts, compliance calendar, daily brief' },
+  { key: 'documents', to: '/documents', icon: FolderOpen, group: 'Admin', label: L('Documents', 'दस्तावेज़', 'పత్రాలు'), desc: 'Certificates, drawings, contracts, PODs' },
   { key: 'settings', to: '/settings', icon: Settings, group: 'Admin', label: L('Settings & access', 'सेटिंग्स', 'సెట్టింగ్‌లు'), desc: 'Company, users, roles, approvals, series' },
   { key: 'audit', to: '/audit', icon: History, group: 'Admin', label: L('Audit log', 'ऑडिट लॉग', 'ఆడిట్ లాగ్'), desc: 'Every change, by people and the AI' },
   { key: 'agents', to: '/agents', icon: Bot, group: 'Admin', label: L('Agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'What each AI agent may do' },

@@ -137,11 +137,11 @@ export function updateP1(fn: (d: P1State) => void) { const d = structuredClone(s
 export const resetP1 = () => { state = seed(); try { sessionStorage.removeItem(KEY); } catch { /* */ } subs.forEach((f) => f()); };
 export const useP1 = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, getP1);
 
-/* ---------- module registry with role visibility (Owner sees everything) ---------- */
+/* ---------- P1 module list (keys match src/lib/nav.ts + rbac SCOPE; roles here are informational) ---------- */
 export const P1_MODULES = [
-  { key: 'production', to: '/production', label: 'BOM & Production', desc: 'BOMs, MRP, work orders, cost', roles: R('Owner', 'Stores', 'Supervisor') },
-  { key: 'quality', to: '/quality', label: 'Quality control', desc: 'Inspections, NCR/CAPA, supplier score', roles: R('Owner', 'Stores', 'Supervisor') },
-  { key: 'banktds', to: '/bank-tds', label: 'Bank & TDS', desc: 'Bank reconciliation, TDS register, 26Q', roles: R('Owner', 'Accounts') },
+  { key: 'bom', to: '/production', label: 'BOM & Production', desc: 'BOMs, MRP, work orders, cost', roles: R('Owner', 'Stores', 'Supervisor') },
+  { key: 'qc', to: '/quality', label: 'Quality control', desc: 'Inspections, NCR/CAPA, supplier score', roles: R('Owner', 'Stores', 'Supervisor') },
+  { key: 'bank', to: '/bank-tds', label: 'Bank & TDS', desc: 'Bank reconciliation, TDS register, 26Q', roles: R('Owner', 'Accounts') },
   { key: 'expenses', to: '/expenses', label: 'Expenses', desc: 'Claims, receipts, approvals, payout', roles: R('Owner', 'Accounts', 'HR', 'Sales', 'Stores', 'Supervisor') },
   { key: 'dispatch', to: '/dispatch', label: 'Dispatch', desc: 'Dispatch plan, packing, LR, POD', roles: R('Owner', 'Stores', 'Supervisor', 'Sales') },
   { key: 'notifications', to: '/notifications', label: 'Notifications', desc: 'Alerts, compliance calendar, daily brief', roles: R('Owner', 'Sales', 'Stores', 'Accounts', 'HR', 'Supervisor') },
