@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import * as D from './data';
 import { CONTACTS, SupplierContact, Channel, finishSourcing } from './sourcing';
 import { finishSprint } from './sprint';
+import { seedP0, seedAudit } from './p0data';
+import { ROLE_USER, roleOf } from './rbac';
 
 export type ChatMsg = { id: number; role: 'user' | 'system' | 'task' | 'outreach'; flow?: 'sourcing' | 'sprint'; text: string; resp?: import('./converse').Resp; taskId?: string; at: string };
 export type DraftMsg = {
@@ -10,6 +12,8 @@ export type DraftMsg = {
 };
 export type ConfirmSpec = { title: string; body: React.ReactNode; confirmLabel?: string; tone?: 'primary' | 'danger'; onConfirm: () => void };
 export type LogEntry = { at: string; text: string; who?: string };
+export type AuditEntry = { id: string; ts: string; at: string; who: string; role: string; agent?: boolean; module: string; record?: string; action: string; before?: string; after?: string };
+export type AuditMeta = { module?: string; record?: string; before?: string; after?: string; agent?: boolean; action?: string };
 export type AgentTask = { id: string; agent: string; text: string; status: 'running' | 'done'; result?: string; to?: string; startedAt: string };
 export type Purchase = { id: string; date: string; sku: string; item: string; qty: number; unit: string; addQty: number; stockUnit: string; supplier: string; contactId?: string; rate?: number; rateUnit?: string; perUnit?: number; amount?: number };
 export type Autonomy = 'Suggest only' | 'Prepare for approval' | 'Auto within limits';
@@ -27,6 +31,7 @@ export type DemoState = {
   purchases: Purchase[];
   sourcing: { status: 'idle' | 'running' | 'done'; startedAt?: number; sent: Record<string, Channel>; picks: Record<string, string>; poDraft: boolean; poApproved: boolean; calls: string[] };
   sprint: { status: 'idle' | 'running' | 'done'; startedAt?: number; target: number; calls: string[] };
+  role: import('./rbac').Role; perms: import('./rbac').Matrix; audit: AuditEntry[]; p0: import('./p0data').P0;
 };
 export const initial = (): DemoState => ({
   orders: clone(D.orders), opportunities: clone(D.opportunities), skus: clone(D.skus), prs: clone(D.purchaseRequests), pos: clone(D.purchaseOrders),
@@ -42,13 +47,14 @@ export const initial = (): DemoState => ({
   purchases: [],
   sourcing: { status: 'idle', sent: {}, picks: {}, poDraft: false, poApproved: false, calls: [] },
   sprint: { status: 'idle', target: 500000, calls: [] },
+  role: 'Owner', perms: {}, audit: seedAudit(), p0: seedP0(),
 });
 
-const KEY = 'business-workspace-demo-v4';
+const KEY = 'business-workspace-demo-v5';
 type Toast = { id: number; text: string; tone?: 'green' | 'blue' | 'amber' };
 type Ctx = {
   s: DemoState;
-  update: (fn: (d: DemoState) => void, log?: string) => void;
+  update: (fn: (d: DemoState) => void, log?: string, meta?: AuditMeta) => void;
   reset: () => void;
   toast: (text: string, tone?: Toast['tone']) => void;
   toasts: Toast[];
@@ -82,11 +88,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(s)); }, [s]);
 
-  const update = useCallback((fn: (d: DemoState) => void, log?: string) => {
+  const update = useCallback((fn: (d: DemoState) => void, log?: string, meta?: AuditMeta) => {
     setS((prev) => {
       const d = clone(prev);
       fn(d);
-      if (log) d.log = [{ at: nowHM(), text: log, who: 'Riya Reddy' }, ...d.log].slice(0, 40);
+      const who = ROLE_USER[roleOf(d)].name;
+      if (log) d.log = [{ at: nowHM(), text: log, who }, ...d.log].slice(0, 40);
+      // Audit: every logged mutation (people or AI) is recorded with before/after where known.
+      if (log || meta) d.audit = [{ id: 'AU-' + Date.now().toString(36) + Math.floor(Math.random() * 99), ts: new Date().toISOString(), at: nowHM(), who: meta?.agent ? `Business OS agent on behalf of ${who}` : who, role: roleOf(d), agent: !!meta?.agent, module: meta?.module || 'general', record: meta?.record, action: meta?.action || log || 'Updated', before: meta?.before, after: meta?.after }, ...(d.audit || [])].slice(0, 300);
       return d;
     });
   }, []);

@@ -5,32 +5,30 @@ import {
   Building2, Truck, Bot, Plug, Sparkles, CheckCircle2, MessageCircle, Mail, Landmark, Send, LogOut, Contact, Moon, Sun, Menu, X, ChevronLeft, ChevronRight, LayoutGrid,
 } from 'lucide-react';
 import { useStore } from '../lib/store';
-import { NAV_LABELS, Lang } from '../lib/i18n';
+import { Lang } from '../lib/i18n';
+import { MODULES, GROUPS as NAV_GROUPS, GROUP_LABEL, type Group } from '../lib/nav';
+import { can, ROLES, ROLE_USER, roleOf, type Role } from '../lib/rbac';
+const NAV_LABELS: Record<string, Record<Lang, string>> = Object.fromEntries(MODULES.map((m) => [m.key, m.label]));
 import { approvals, customerById, supplierById } from '../lib/domain';
 import { company, jobWorkers } from '../lib/data';
 import { Badge, Button, Modal, cx, Fields, Field } from './ui';
 import { inr } from '../lib/format';
 import { GuidePanel } from './Guide';
 
-const NAV = [
-  { key: 'home', to: '/', icon: Home },
-  { key: 'approvals', to: '/approvals', icon: Inbox },
-  { key: 'sales', to: '/sales', icon: Handshake },
-  { key: 'orders', to: '/orders', icon: ClipboardList },
-  { key: 'procurement', to: '/procurement', icon: ShoppingCart },
-  { key: 'suppliers', to: '/suppliers', icon: Contact },
-  { key: 'inventory', to: '/inventory', icon: Boxes },
-  { key: 'operations', to: '/operations', icon: Factory },
-  { key: 'jobwork', to: '/job-work', icon: Truck },
-  { key: 'people', to: '/people', icon: Users },
-  { key: 'finance', to: '/finance', icon: IndianRupee },
-  { key: 'reports', to: '/reports', icon: BarChart3 },
-];
-const NAV2 = [
-  { key: 'agents', to: '/agents', icon: Bot },
-  { key: 'integrations', to: '/integrations', icon: Plug },
-  { key: 'setup', to: '/setup', icon: Sparkles },
-];
+const NAV_SUB: Record<string, [string, string][]> = {
+  suppliers: [['Live sourcing', '/sourcing/live']],
+  procurement: [['Purchase orders', '/procurement?tab=Purchase%20orders']],
+  operations: [['Work orders', '/operations?tab=Work%20orders'], ['Dispatch plan', '/operations?tab=Dispatch%20plan']],
+  people: [['Attendance', '/people?tab=Attendance']],
+  finance: [['Receivables', '/finance?tab=Receivables'], ['Collections', '/collections']],
+  jobwork: [['Material out', '/job-work?tab=Material%20out']],
+};
+const NAV_DESC: Record<string, string> = Object.fromEntries(MODULES.map((m) => [m.key, m.desc]));
+type NavEntry = (typeof MODULES)[number];
+const ALL = MODULES;
+/** Groups visible to the current role (RBAC drives the nav). */
+const useGroups = () => { const { s } = useStore(); return NAV_GROUPS.map((g) => [g, ALL.filter((m) => m.group === g && can(s, m.key)).map((m) => m.key)] as [Group, string[]]).filter(([, k]) => k.length); };
+const ALL_NAV = ALL;
 
 export function LogoMark({ size = 32 }: { size?: number }) {
   const gid = 'bwg' + React.useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -45,22 +43,6 @@ export function LogoMark({ size = 32 }: { size?: number }) {
   );
 }
 
-const NAV_DESC: Record<string, string> = {
-  home: 'Today at a glance and AI chat', approvals: 'Drafts waiting for your OK', sales: 'Leads, quotes and customers', orders: 'Sales orders and delivery promises',
-  procurement: 'Purchase requests and orders', suppliers: 'Supplier contacts and sourcing', inventory: 'Stock, reorder and slow movers', operations: 'Work orders and dispatch plan',
-  jobwork: 'Material out with job workers', people: 'Staff, attendance and contract labour', finance: 'Receivables, payables and GST', reports: 'Trends and month-end views',
-  agents: 'What each AI agent may do', integrations: 'Tally, WhatsApp, email and more', setup: 'Quick setup and walkthrough',
-};
-const NAV_SUB: Record<string, [string, string][]> = {
-  suppliers: [['Live sourcing', '/sourcing/live']],
-  procurement: [['Purchase orders', '/procurement?tab=Purchase%20orders']],
-  operations: [['Work orders', '/operations?tab=Work%20orders'], ['Dispatch plan', '/operations?tab=Dispatch%20plan']],
-  people: [['Attendance', '/people?tab=Attendance']],
-  finance: [['Receivables', '/finance?tab=Receivables'], ['Collections', '/collections']],
-  jobwork: [['Material out', '/job-work?tab=Material%20out']],
-};
-const GROUPS: [string, string[]][] = [['Run the business', ['home', 'approvals', 'sales', 'orders', 'procurement', 'suppliers', 'inventory', 'operations', 'jobwork']], ['Money & people', ['people', 'finance', 'reports']], ['Workspace', ['agents', 'integrations', 'setup']]];
-const ALL_NAV = [...NAV, ...NAV2];
 
 function useDesktop() {
   const q = '(min-width: 1024px)';
@@ -98,7 +80,7 @@ function ModuleFlyout({ onClose, returnTo }: { onClose: () => void; returnTo: Re
     }
   };
   const match = (k: string) => { const t = (NAV_LABELS[k][lang] + ' ' + NAV_DESC[k] + ' ' + (NAV_SUB[k] || []).map((x) => x[0]).join(' ')).toLowerCase(); return t.includes(q.trim().toLowerCase()); };
-  const groups = GROUPS.map(([g, ks]) => [g, ks.filter(match)] as const).filter(([, ks]) => ks.length);
+  const groups = useGroups().map(([g, ks]) => [GROUP_LABEL[g][lang], ks.filter(match)] as const).filter(([, ks]) => ks.length);
   return (
     <>
       <div className="fixed inset-0 left-[68px] z-40 bg-[#05070f]/25 backdrop-blur-[2px] fly-backdrop" onClick={close} data-testid="flyout-backdrop" />
@@ -146,11 +128,15 @@ function Sidebar({ collapsed, mobile, onToggle, onClose, onFlyout, flyOpen, pill
   const { s, reset, openConfirm } = useStore();
   const lang = s.lang as Lang;
   const nApprovals = approvals(s).length;
+  const loc = useLocation();
   const [tip, setTip] = useState<{ label: string; y: number } | null>(null);
   const tipOn = (label: string) => (e: React.SyntheticEvent<HTMLElement>) => { if (!collapsed) return; const r = e.currentTarget.getBoundingClientRect(); setTip({ label, y: r.top + r.height / 2 }); };
   const tipOff = () => setTip(null);
   const c = collapsed;
-  const item = (n: (typeof NAV)[number]) => {
+  const groups = useGroups();
+  const [shut, setShut] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('bw-nav-groups') || '{}'); } catch { return {}; } });
+  const flip = (g: string) => setShut((x) => { const n = { ...x, [g]: !x[g] }; try { localStorage.setItem('bw-nav-groups', JSON.stringify(n)); } catch { /* ignore */ } return n; });
+  const item = (n: NavEntry) => {
     const label = NAV_LABELS[n.key][lang];
     return (
       <NavLink key={n.key} to={n.to} end={n.to === '/'} data-nav={n.key} aria-label={c ? label + (n.key === 'approvals' && nApprovals ? `, ${nApprovals} waiting` : '') : undefined}
@@ -185,10 +171,15 @@ function Sidebar({ collapsed, mobile, onToggle, onClose, onFlyout, flyOpen, pill
         </button>
       )}
       <nav id="side-nav" className={cx('no-scrollbar flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden py-2 transition-all duration-200', c ? 'px-2.5' : 'px-2.5')}>
-        {NAV.map(item)}
-        <div className={cx('overflow-hidden whitespace-nowrap px-3 pb-1.5 pt-5 text-[10.5px] font-semibold uppercase tracking-[.12em] text-[#5d6890] transition-opacity', c && 'h-5 pt-4 opacity-0')}>{c ? '' : 'Workspace'}</div>
-        {c && <div className="mx-3 -mt-3 mb-2 border-t border-white/[.06]" />}
-        {NAV2.map(item)}
+        {groups.map(([g, ks]) => (
+          <div key={g} data-nav-group={g}>
+            {g !== 'Overview' && (c ? <div className="mx-3 my-2 border-t border-white/[.06]" /> :
+              <button onClick={() => flip(g)} aria-expanded={!shut[g]} className="flex w-full items-center justify-between px-3 pb-1 pt-4 text-[10.5px] font-semibold uppercase tracking-[.12em] text-[#5d6890] hover:text-[#9aa4c4]">
+                {GROUP_LABEL[g][lang]}<ChevronDown size={12} className={cx('transition-transform', shut[g] && '-rotate-90')} />
+              </button>)}
+            {(c || !shut[g] || ks.some((k) => loc.pathname.startsWith(ALL.find((m) => m.key === k)!.to) && k !== 'home')) && ks.map((k) => item(ALL.find((m) => m.key === k)!))}
+          </div>
+        ))}
       </nav>
       {c ? (
         <div className="flex flex-col items-center gap-2 pb-4 pt-2">
@@ -368,12 +359,19 @@ function Topbar() {
         </div>
         <div ref={r2} className="relative">
           <button data-testid="profile-menu" onClick={() => setProf((v) => !v)} className="flex items-center gap-2 rounded-md py-1 pl-1 pr-2 hover:bg-slate-100">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-grad text-2xs font-semibold text-white ring-2 ring-white/80 dark:ring-white/10">RR</span>
-            <span className="hidden text-left leading-tight sm:inline"><span className="block text-[13px] font-medium text-slate-800">Riya Reddy</span><span className="block text-2xs text-slate-400">Owner</span></span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-grad text-2xs font-semibold text-white ring-2 ring-white/80 dark:ring-white/10">{ROLE_USER[roleOf(s)].name.split(' ').map((x) => x[0]).join('').slice(0, 2)}</span>
+            <span className="hidden text-left leading-tight sm:inline"><span className="block text-[13px] font-medium text-slate-800">{ROLE_USER[roleOf(s)].name}</span><span data-testid="current-role" className="block text-2xs text-slate-400">{roleOf(s)}</span></span>
             <ChevronDown size={14} className="text-slate-400" />
           </button>
           {prof && (
             <div className="absolute right-0 top-11 z-40 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
+              <div className="px-3 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-wider text-slate-400">View as role</div>
+              <div className="grid grid-cols-2 gap-1 px-2 pb-2">
+                {ROLES.map((r) => (
+                  <button key={r} data-role={r} onClick={() => { update((d) => { d.role = r as Role; }); setProf(false); nav('/'); }} className={cx('rounded-md px-2 py-1 text-left text-[12px]', roleOf(s) === r ? 'bg-brand-50 font-semibold text-brand-700' : 'text-slate-600 hover:bg-slate-50')}>{r}<span className="block truncate text-[10px] font-normal text-slate-400">{ROLE_USER[r as Role].name}</span></button>
+                ))}
+              </div>
+              <div className="my-1 border-t border-slate-100" />
               {[['Company profile', () => setProfile(true)], ['Agents & automations', () => nav('/agents')], ['Connected apps', () => nav('/integrations')], ['Quick setup', () => nav('/setup')]].map(([l, f]) => (
                 <button key={l as string} onClick={() => { (f as () => void)(); setProf(false); }} className="block w-full px-3 py-1.5 text-left text-[13px] text-slate-700 hover:bg-slate-50">{l as string}</button>
               ))}
