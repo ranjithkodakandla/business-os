@@ -13,10 +13,13 @@ export type Intent =
   | { tool: 'receive_stock'; args: { item: string; qty: number; unit: string; supplier?: string; rate?: number | null; rateUnit?: string } }
   | { tool: 'update_record'; args: { entity: string; ref: string; field: string; value: string; changes?: { field: string; value: string }[] } }
   | { tool: 'query'; args: { entity: string; category?: string; city?: string; name?: string } }
-  | { tool: 'insight'; args: { kind: string } };
+  | { tool: 'insight'; args: { kind: string } }
+  | { tool: 'add_person'; args: PersonArgs };
+export type PersonArgs = { name?: string; role?: string; team?: string; type?: string; start?: string; manager?: string; pay?: string };
+export type NewPerson = { id: string; name: string; role: string; team: string; type: string; start: string; manager: string; pay: string; shift: string; site: string };
 
 /* ---------- results (what the chat renders) ---------- */
-export type Status = 'pending' | 'saved' | 'cancelled';
+export type Status = 'pending' | 'saved' | 'cancelled' | 'replaced';
 export type Act = { label: string; kind: string; primary?: boolean }; // kind: open:/path | ask:text
 export type Col = { key: string; label: string; align?: 'l' | 'r'; type?: 'text' | 'num' | 'money' | 'pct' | 'badge' };
 export type Row = Record<string, string | number> & { _to?: string; _tone?: string };
@@ -24,6 +27,7 @@ export type Kpi = { label: string; value: string; sub?: string; tone?: 'red' | '
 export type Diff = { label: string; before: string; after: string };
 export type Bar = { label: string; value: number; display: string; tone?: 'green' | 'amber' | 'red' | 'blue' };
 export type Result =
+  | { kind: 'add_person'; status: Status; headline: string; person: NewPerson; missing: string[]; dupOf?: string; via: Via }
   | { kind: 'add_supplier'; status: Status; headline: string; contact: SupplierContact & { gstin?: string }; dupOf?: string; via: Via }
   | { kind: 'receive'; status: Status; headline: string; sku: string; skuName: string; qty: number; unit: string; addQty: number; stockUnit: string; conv?: string; supplier: string; contactId?: string; rate?: number; rateUnit?: string; perStockUnit?: number; amount?: number; before: number; after: number; priceNote?: string; priceTone?: 'red' | 'green' | 'amber'; via: Via }
   | { kind: 'update'; status: Status; headline: string; target: { type: 'contact' | 'bill' | 'po' | 'invoice'; id: string; label: string }; diffs: Diff[]; patch: Record<string, string | number>; via: Via }
@@ -68,7 +72,7 @@ const VERB_RECV = /\b(received|recieved|receive|got|came|come in|arrived|deliver
 const VERB_UPD = /\b(change|chnage|chage|cahnge|chang|update|updte|upate|udpate|modify|set|edit|correct|replace|mark|make|marchu|maarchu|marchandi|badlo|badal|badli)\b|\bnew (phone|number|mobile|email|address)\b|\b(is|got|been) paid\b|\bpaid\b.*\b(po|pb|inv)[\s-]?\d/i;
 const VERB_VIEW = /\b(show|list|find|display|view|give me|get me|pull up|which|who are|what'?s pending|whats pending|pending (from|with|for)|outstanding (from|for|with)|due from|dikhao|chupinchu|chupi)\b/i;
 const INSIGHT = /\b(most reliable|least reliable|reliable|best supplier|top supplier|worst supplier|over ?pay(ing)?|paying (too much|more)|too expensive|costl(y|ier)|where can i save|save money|running low|low stock|below reorder)\b/i;
-export const looksLikeData = (t: string) => VERB_ADD.test(t) || (VERB_RECV.test(t) && /\d/.test(t) && !/\b(need|want|require|chahiye|kavali)\b/i.test(t)) || (VERB_UPD.test(t) && (FIELD_RE.test(t) || /\b(po|pb|inv|bill|invoice)[\s-]?\d/i.test(t))) || (VERB_VIEW.test(t) && /\b(suppliers?|vendors?|pending|outstanding|due|stock|pos?|purchase orders?|bills?)\b/i.test(t)) || INSIGHT.test(t);
+export const looksLikeData = (t: string) => isAddPerson(t) || VERB_ADD.test(t) || (VERB_RECV.test(t) && /\d/.test(t) && !/\b(need|want|require|chahiye|kavali)\b/i.test(t)) || (VERB_UPD.test(t) && (FIELD_RE.test(t) || /\b(po|pb|inv|bill|invoice)[\s-]?\d/i.test(t))) || (VERB_VIEW.test(t) && /\b(suppliers?|vendors?|pending|outstanding|due|stock|pos?|purchase orders?|bills?)\b/i.test(t)) || INSIGHT.test(t);
 
 /* field words people use → contact field */
 const FIELD_SRC = String.raw`phone(?: number| no)?|mobile(?: number| no)?|whatsapp(?: number| no)?|contact number|number|e-?mail(?: id| address)?|mail id|city|area|locality|location|address|place|town|lead[ -]?(?:time|days?)|delivery (?:time|days?)|lead|payment terms|credit (?:days|period)|terms|gstin|gst(?: number| no)?|contact person|contact name|person|supplies|items|products|material`;
@@ -96,6 +100,7 @@ const refBefore = (t: string) => { const i = t.search(FIELD_RE); const head = (i
 
 /* ---------- 2. rules parser (fallback + fills gaps in the LLM call) ---------- */
 export function parseRules(raw: string): Intent | null {
+  if (isAddPerson(raw)) return { tool: 'add_person', args: parsePerson(raw) };
   const t = raw.trim().replace(/\s+/g, ' ');
   const low = t.toLowerCase();
   if (INSIGHT.test(t)) {
@@ -151,6 +156,7 @@ export function parseRules(raw: string): Intent | null {
 /** Merge an LLM tool call with the rules parse: the LLM decides the tool; rules fill blanks the LLM left empty (phone, GSTIN…). */
 export function merge(llm: Intent | null, rules: Intent | null): { intent: Intent | null; via: Via } {
   if (!llm) return { intent: rules, via: 'rules' };
+  if (rules?.tool === 'add_person') return { intent: rules, via: 'rules' }; // the AI has no people tool yet – never let it turn a new hire into a supplier
   if (rules && rules.tool === llm.tool) {
     const a = { ...(llm.args as Record<string, unknown>) }; const r = rules.args as Record<string, unknown>;
     if (llm.tool === 'update_record') { const lc = (a.changes as unknown[] | undefined)?.length || (a.field ? 1 : 0); const rc = (r.changes as unknown[] | undefined)?.length || 0; if (rc > lc) a.changes = r.changes;  const lr = String(a.ref || '').toLowerCase(), rr = String(r.ref || '').toLowerCase().trim(); if (rr && lr !== rr && lr.includes(rr)) a.ref = r.ref; /* keep what the owner typed so an ambiguous name still asks */ }
@@ -190,6 +196,7 @@ const findSku = (s: DemoState, item: string) => {
 const head = (via: Via) => via;
 
 export function build(intent: Intent, s: DemoState, via: Via, text = ''): Result {
+  if (intent.tool === 'add_person') return buildPerson(intent.args, s, via);
   if (intent.tool === 'add_supplier') {
     const a = intent.args;
     const name = cap(String(a.supplier || '').trim());
@@ -410,6 +417,13 @@ function insight(kind: string, s: DemoState, via: Via): Result {
 /* ---------- 4. apply a confirmed change to the session data ---------- */
 export function apply(d: DemoState, r: Result) {
   const today = todayISO;
+  if (r.kind === 'add_person') {
+    const p = r.person; const contract = /contract|temp|intern|consult|freelanc|part/i.test(p.type);
+    d.employees.unshift({ id: p.id, name: p.name, role: p.role || 'Team member', team: p.team || 'General', manager: p.manager || '—', type: contract ? 'Contract' : 'Permanent', shift: p.shift, site: p.site,
+      status: 'Present', checkIn: '—', checkOut: '—', leave: '—', pf: !contract, esi: false, joined: p.start || todayISO, pay: p.pay || undefined, employment: p.type });
+    d.log = [{ at: hm(), text: `Added ${p.name} (${p.role || 'team member'}) to People & HR from chat`, who: 'Workspace AI' }, ...d.log].slice(0, 40);
+    return `${p.name} added to People & HR`;
+  }
   if (r.kind === 'add_supplier') { d.contacts.push({ ...r.contact }); d.log = [{ at: hm(), text: `Added supplier ${r.contact.supplier} from chat`, who: 'Workspace AI' }, ...d.log].slice(0, 40); return `${r.contact.supplier} added to Supplier contacts`; }
   if (r.kind === 'receive') {
     const k = d.skus.find((x) => x.sku === r.sku)!; k.onHand += r.addQty; k.lastMovement = today; k.agingDays = 0;
@@ -431,4 +445,128 @@ export function apply(d: DemoState, r: Result) {
   return '';
 }
 const hm = () => { const t = new Date(); return `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`; };
+
+/* ---------- 5. people: add an employee / team member ---------- */
+const PERSON_WORD = String.raw`employee|employe|emplyee|staff(?: member)?|team ?member|worker|joinee|joiner|new hire|recruit|co-?\s?founder|cofounder|founder|partner|intern`;
+const NOT_PERSON = /\b(supplier|vendor|dealer|party|contact|customer|client|stock|item|kg|pcs|po|bill|invoice)s?\b/i;
+const ADD_V = String.raw`add|ad|onboard|hire|hired|register|create|enroll|enrol|include`;
+/** "add Saad Ansari as co-founder", "add new employee Ravi in sales", "hire Priya as accountant", "onboard a new staff member Kiran". */
+export const isAddPerson = (raw: string) => {
+  const first = raw.split('\n')[0];
+  if (new RegExp(String.raw`\b(${ADD_V}|new)\b[^.?!\n]*\b(${PERSON_WORD})\b`, 'i').test(first) && !/\b(supplier|vendor|dealer)\b/i.test(first)) return true;
+  const m = first.match(new RegExp(String.raw`\b(?:${ADD_V})\s+(?:mr\.?\s+|ms\.?\s+|mrs\.?\s+)?([a-z][a-z.']*(?:\s+[a-z][a-z.']*){0,3}?)\s+as\s+(?:(?:a|an|our|the|new)\s+)?([a-z][a-z -]*)`, 'i'));
+  return !!m && !NOT_PERSON.test(m[2]) && !NOT_PERSON.test(m[1]);
+};
+const SKIP_V = /^(blank|none|nil|null|na|n\/a|-+|—|skip|no|nothing|not yet|tbd|tba|later|empty|nobody|no one|not applicable|leave (it )?blank|\?)$/i;
+const addD = (n: number) => { const d = new Date(todayISO + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const dateVal = (v: string) => /^(today|tdy|now|immediately|asap|right away)$/i.test(v) ? todayISO : /^(tomorrow|tmrw|tmr|tomorow)$/i.test(v) ? addD(1) : /^yesterday$/i.test(v) ? addD(-1) : /^next (week|monday)$/i.test(v) ? addD(7) : /^(1st|first) (of )?next month$/i.test(v) ? '2026-11-01' : /^(?:next |this |coming )?(sun|mon|tue|wed|thu|fri|sat)[a-z]*$/i.test(v) ? (() => { const want = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].indexOf(v.toLowerCase().replace(/^(next|this|coming) /, '').slice(0, 3)); const now = new Date(todayISO + 'T00:00:00').getDay(); return addD(((want - now + 7) % 7) || 7); })() : v;
+/** Answer keys people type, typo tolerant ("compnesatink", "employeement type", "reporting"). */
+const keyOf = (k0: string): string => {
+  const k = k0.toLowerCase().replace(/[^a-z ]/g, ' ').trim(); const w = k.split(/\s+/);
+  const has = (...p: string[]) => w.some((x) => p.some((y) => x.startsWith(y) || (x.length >= 5 && lev(x.slice(0, y.length + 1), y) <= 1)));
+  if (/^name$|full name|employee name|person name/.test(k)) return 'name';
+  if (has('report', 'manag', 'boss', 'superv', 'under')) return 'manager';
+  if (has('compen', 'compn', 'salar', 'sallar', 'ctc', 'pay', 'wage', 'stipen', 'remun')) return 'pay';
+  if (has('start', 'join', 'doj', 'date')) return 'start';
+  if (has('type', 'employm', 'employe', 'emplo', 'full', 'part')) return 'type';
+  if (has('team', 'dept', 'depart', 'divis', 'unit')) return 'team';
+  if (has('role', 'design', 'posit', 'title', 'job')) return 'role';
+  if (has('phone', 'mobile', 'whatsapp', 'number', 'cell')) return 'phone';
+  if (has('mail', 'email')) return 'email';
+  if (has('gst')) return 'gstin';
+  if (has('city', 'area', 'locat', 'place', 'addres', 'town')) return 'city';
+  if (has('contact', 'person', 'owner')) return 'person';
+  if (has('suppl', 'items', 'product', 'materi', 'sells')) return 'supplies';
+  if (has('terms', 'credit', 'payment')) return 'terms';
+  if (has('compan', 'supplier', 'vendor', 'firm')) return 'supplier';
+  return '';
+};
+/** Every "field – value" answer in a reply: one per line, or separated by ; or , – plus "no compensation" style negatives. */
+export function parseAnswers(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const segs = raw.split(/\n|;|,(?=\s*[a-z][a-z ]{1,25}\s*(?:-|:|=|–|—)\s)/i).map((x) => x.trim()).filter(Boolean);
+  for (const seg of segs) {
+    const m = seg.match(/^[•*\-\d.)\s]*([a-z][a-z .\/']{1,30}?)\s*(?:-|:|=|–|—|\bis\b|\bwill be\b)\s*(.*)$/i);
+    if (m) { const k = keyOf(m[1]); if (k && out[k] === undefined) { const v = m[2].trim().replace(/[.!]+$/, ''); out[k] = SKIP_V.test(v) ? '' : v; } continue; }
+    const neg = seg.match(/^(?:no|without|nil|zero|not decided|no fixed)\s+([a-z ]{3,30})$/i);
+    if (neg) { const k = keyOf(neg[1]); if (k && out[k] === undefined) out[k] = ''; }
+  }
+  return out;
+}
+/** A reply that answers a clarifying question rather than starting something new. */
+export const looksLikeAnswers = (t: string) => { const n = Object.keys(parseAnswers(t)).length; return n >= 2 || (n === 1 && /\n/.test(t.trim())) || (n === 1 && t.trim().split(/\s+/).length <= 6); };
+
+export function parsePerson(raw: string): PersonArgs {
+  const first = raw.split('\n')[0].trim(); const a: PersonArgs = {};
+  const nm = first.match(new RegExp(String.raw`\b(?:${ADD_V}|new)\s+(?:a\s+|an\s+|one\s+)?(?:new\s+)?(?:(?:${PERSON_WORD})\s+)?(?:called\s+|named\s+|name\s+|:\s*|-\s*)?(?:mr\.?\s+|ms\.?\s+|mrs\.?\s+)?([a-z][a-z.']*(?:\s+[a-z][a-z.']*){0,3}?)(?=\s+(?:as|in|to|for|into|joining|from|on|with|under|reporting|starting|who|at)\b|\s*[,.;:]|$)`, 'i'));
+  let name = (nm?.[1] || '').replace(new RegExp(String.raw`\b(${PERSON_WORD}|new|one|a|an|the|member|person)\b`, 'gi'), ' ').replace(/\s+/g, ' ').trim();
+  if (!name) name = (first.match(new RegExp(String.raw`\b(?:${PERSON_WORD})\s+(?:called\s+|named\s+)?([a-z][a-z.']*(?:\s+[a-z][a-z.']*)?)`, 'i'))?.[1] || '').replace(/\b(as|in|to|for)\b.*$/i, '').trim();
+  a.name = cap(name);
+  const role = first.match(/\bas\s+(?:(?:a|an|our|the|new)\s+)?([a-z][a-z\- ]*?)(?=\s+(?:in|for|from|on|with|under|reporting|joining|starting|at|and)\b|[,.;]|$)/i)?.[1];
+  if (role) a.role = role.trim();
+  else { const w = first.match(new RegExp(String.raw`\b(${PERSON_WORD})\b`, 'i'))?.[1]; if (w && /founder|partner|intern/i.test(w)) a.role = w; }
+  const team = first.match(/\b(?:in|into|to|for|join(?:ing)?)\s+(?:the\s+|our\s+)?([a-z&]+(?:\s+[a-z&]+)?)\s*(?:team|dept|department)?\b/i)?.[1];
+  if (team && !/^(today|tomorrow|monday|next|the|a|an)$/i.test(team)) a.team = team.trim();
+  const st = first.match(/\b(?:from|starting|joining|joins|start(?:s|ing)? on)\s+(today|tomorrow|monday|next week|\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?|\d{1,2}\s+[a-z]{3,9})/i)?.[1]; if (st) a.start = st;
+  const pay = first.match(/(?:₹|rs\.?|inr)\s*\d[\d,]*(?:\s*(?:k|lakh|l|lpa|per month|\/month|pm|p\.m\.))?|\d+(?:\.\d+)?\s*(?:lpa|lakh(?:s)? per annum|k per month|k\/month)/i)?.[0]; if (pay) a.pay = pay;
+  if (/\b(contract|contractual|part[ -]?time|intern(ship)?|temporary|consultant)\b/i.test(first)) a.type = first.match(/\b(contract|contractual|part[ -]?time|intern(ship)?|temporary|consultant)\b/i)![1];
+  const ans = parseAnswers(raw.split('\n').length > 1 ? raw.split('\n').slice(1).join('\n') : (/(-|:|=)/.test(first.replace(/co-?founder/gi, '')) && !nm ? first : ''));
+  for (const k of ['name', 'role', 'team', 'type', 'start', 'manager', 'pay'] as const) if (ans[k] !== undefined) a[k] = ans[k];
+  return a;
+}
+const typeLabel = (t: string) => { const x = t.toLowerCase(); return !x.trim() ? 'Full time' : /part/.test(x) ? 'Part time' : /intern/.test(x) ? 'Intern' : /contract|temp|consult|freelanc/.test(x) ? 'Contract' : /full|perm|regular|ft\b/.test(x) ? 'Full time' : cap(t.trim()); };
+const teamFor = (s: DemoState, team: string, role: string) => {
+  const teams = [...new Set(s.employees.map((e) => e.team))];
+  if (team) { const hit = teams.map((t) => ({ t, sc: Math.max(nameScore(team, t), norm(t).startsWith(norm(team)) ? 1 : 0) })).sort((x, y) => y.sc - x.sc)[0]; return hit && hit.sc >= 0.5 ? hit.t : cap(team); }
+  const r = role.toLowerCase();
+  if (/founder|director|ceo|cto|coo|cfo|chief|head|partner|owner|president|gm\b|general manager/.test(r)) return teams.find((t) => /manage/i.test(t)) || 'Management';
+  if (/sales|business dev|bd\b|marketing|account manager|key account/.test(r)) return teams.find((t) => /sales/i.test(t)) || 'Sales';
+  if (/account|finance|admin|hr\b|human|payroll|clerk|receptionist|office/.test(r)) return teams.find((t) => /account|admin/i.test(t)) || 'Accounts & Admin';
+  if (/quality|qc|inspector/.test(r)) return teams.find((t) => /quality/i.test(t)) || 'Quality';
+  if (/store|purchase|procure|buyer/.test(r)) return teams.find((t) => /store|purchase/i.test(t)) || 'Stores & Purchase';
+  if (/weld|fitter|assembl/.test(r)) return teams.find((t) => /weld/i.test(t)) || 'Production';
+  return '';
+};
+const cleanRole = (r: string) => r.trim() ? cap(r.trim().replace(/\bco[\s-]?founder\b/i, 'Co-founder').replace(/\bcofounder\b/i, 'Co-founder')).replace(/\bCo-Founder\b/, 'Co-founder').replace(/\b(Ceo|Cto|Coo|Cfo|Hr|Qc|Gm|Md)\b/g, (m) => m.toUpperCase()) : '';
+export const personMissing = (p: { name: string; role: string }) => [!p.name && 'Name', !p.role && 'Role'].filter(Boolean) as string[];
+function buildPerson(a: PersonArgs, s: DemoState, via: Via): Result {
+  const role = cleanRole(String(a.role || '')); const team = teamFor(s, String(a.team || ''), role);
+  const shift = s.employees.find((e) => e.team === team)?.shift || 'General (09:30–18:30)';
+  const mgr0 = String(a.manager || '').trim(); const mgrHit = mgr0 ? s.employees.map((e) => ({ e, sc: nameScore(mgr0, e.name) })).sort((x, y) => y.sc - x.sc)[0] : undefined;
+  const person: NewPerson = {
+    id: `EMP-${Math.max(1000, ...s.employees.map((e) => Number(e.id.replace(/\D/g, '')) || 0)) + 1}`,
+    name: cap(String(a.name || '').trim()), role, team, type: typeLabel(String(a.type || '')), start: dateVal(String(a.start || 'today').trim()) || todayISO,
+    manager: mgrHit && mgrHit.sc >= 0.5 ? mgrHit.e.name : cap(mgr0), pay: String(a.pay || '').trim(), shift, site: s.employees.find((e) => e.team === team)?.site || 'Jeedimetla – Office',
+  };
+  const missing = personMissing(person);
+  const dup = person.name ? s.employees.find((e) => norm(e.name) === norm(person.name)) : undefined;
+  return { kind: 'add_person', status: 'pending', person, missing, dupOf: dup?.id, via,
+    headline: !person.name ? 'Who should I add? Type the name below – everything else is optional.' : dup ? `${dup.name} is already in People & HR (${dup.id}) – saving adds a second record.` : missing.length ? `Almost there – just need ${person.name}’s role. Fill it in below; the rest is optional.` : `Ready to add ${person.name} as ${person.role}${team ? ` in ${team}` : ''}, starting ${person.start === todayISO ? 'today' : person.start}.` };
+}
+/** Fold a reply ("Role - Co founder / Start date - today / reporting - blank") into the card that asked for it. */
+export function mergeAnswers(r: Result, raw: string, s: DemoState): Result | null {
+  const ans = parseAnswers(raw);
+  if (r.kind === 'add_person') {
+    if (!Object.keys(ans).some((k) => ['name', 'role', 'team', 'type', 'start', 'manager', 'pay'].includes(k))) return null;
+    const p = r.person; const args: PersonArgs = { name: p.name, role: p.role, team: p.team, type: p.type, start: p.start, manager: p.manager, pay: p.pay };
+    for (const k of Object.keys(args) as (keyof PersonArgs)[]) if (ans[k] !== undefined) args[k] = ans[k];
+    if (ans.role !== undefined && ans.team === undefined) args.team = '';
+    const out = buildPerson(args, s, r.via) as Extract<Result, { kind: 'add_person' }>; out.person.id = p.id; return out;
+  }
+  if (r.kind === 'add_supplier') {
+    const c = { ...r.contact }; let hit = false;
+    const phone = (raw.match(PHONE_RE) || [''])[0]; const email = (raw.match(EMAIL_RE) || [''])[0]; const gst = (raw.match(GSTIN_RE) || [''])[0];
+    if (phone) { c.phone = maskPhone(phone); hit = true; } if (email) { c.email = email; hit = true; } if (gst) { c.gstin = gst.toUpperCase(); hit = true; }
+    for (const [k, v] of Object.entries(ans)) {
+      if (k === 'person') { c.person = cap(v); hit = true; } else if (k === 'city') { c.city = cap(v); hit = true; } else if (k === 'supplies') { c.supplies = v; hit = true; }
+      else if (k === 'terms') { c.terms = v || c.terms; hit = true; } else if (k === 'supplier') { c.supplier = cap(v) || c.supplier; hit = true; }
+      else if (k === 'gstin' && !gst) { c.gstin = v.toUpperCase(); hit = true; } else if (k === 'name' && !c.person) { c.person = cap(v); hit = true; }
+    }
+    if (!hit) return null;
+    const miss = missingFields(c);
+    return { ...r, contact: c, status: 'pending', headline: miss.length ? `Updated ${c.supplier || 'the supplier'} – ${miss.length} detail${miss.length > 1 ? 's' : ''} still missing (optional, you can save now).` : `Ready to add ${c.supplier} – everything needed for a purchase order is here.` };
+  }
+  return null;
+}
+
 export { head, isHyd };

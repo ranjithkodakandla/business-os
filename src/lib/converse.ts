@@ -14,6 +14,7 @@ export type Block =
   | { type: 'table'; cols: string[]; rows: string[][]; align?: ('l' | 'r')[] }
   | { type: 'steps'; title: string; items: string[] }
   | { type: 'live'; text: string }
+  | { type: 'ask'; items: { q: string; options: string[] }[] }
   | { type: 'data'; r: import('./dataAgent').Result };
 // (live outreach cards are separate chat messages – see OutreachLive)
 export type Action = { label: string; kind: string; primary?: boolean };

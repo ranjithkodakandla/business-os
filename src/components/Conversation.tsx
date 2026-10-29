@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUp, Loader2, CheckCircle2, CornerDownRight, Sparkles, Bot, Database, Mic, Square } from 'lucide-react';
+import { ArrowUp, Loader2, CheckCircle2, CornerDownRight, Sparkles, Bot, Database, Mic, Square, MessageCircleQuestion } from 'lucide-react';
 import { domainOf, domainView, snapshot, isSpecific, validateView, type GenBlock } from '../lib/domainViews';
-import { looksLikeData, parseRules, merge, build, catalog, type Intent as DataIntent } from '../lib/dataAgent';
+import { looksLikeData, parseRules, merge, build, catalog, mergeAnswers, looksLikeAnswers, type Intent as DataIntent } from '../lib/dataAgent';
 import { DataView } from './DataViews';
 import { useStore } from '../lib/store';
 import { respond, Resp, Block } from '../lib/converse';
@@ -68,6 +68,21 @@ function BlockView({ b }: { b: Block }) {
         <ol className="space-y-1">
           {b.items.map((t, i) => <li key={i} className="flex gap-2 text-[13px] text-slate-700"><span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[10px] font-semibold text-brand-700">{i + 1}</span><span><RichText text={t} /></span></li>)}
         </ol>
+      </div>
+    );
+  if (b.type === 'ask')
+    return (
+      <div className="overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-b from-brand-50/50 to-white" data-testid="ask-card">
+        <div className="flex items-center gap-2 px-3.5 pt-2.5 text-2xs font-semibold uppercase tracking-wide text-brand-700"><MessageCircleQuestion size={13} /> A few details</div>
+        <div className="divide-y divide-brand-100/60">
+          {b.items.map((x, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2 px-3.5 py-2">
+              <span className="min-w-[140px] flex-1 text-[13px] font-medium text-slate-800">{x.q}</span>
+              {x.options.map((o) => <button key={o} type="button" data-ask-option={o} onClick={() => window.dispatchEvent(new CustomEvent('bw-fill', { detail: `${x.q.replace(/\?$/, '')} - ${o}` }))} className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[12px] text-slate-700 hover:border-brand-300 hover:text-brand-700">{o}</button>)}
+            </div>
+          ))}
+        </div>
+        <div className="px-3.5 pb-2.5 pt-1 text-[11.5px] text-slate-400">Reply in one message with what you know – skip anything optional.</div>
       </div>
     );
   if (b.type === 'data') return null;
@@ -164,8 +179,33 @@ export function useChat() {
     // Data commands (add / receive / update / view / insights): the AI turns the message into a tool call, rules fill the gaps,
     // and the answer is structured UI that ends in a confirm card before anything changes.
     // Any question about business data → a visual card (KPIs, charts, tables, status items), never bullet text.
+    // Conversation context: a reply to the card or question just above is an ANSWER, not a new question – no instant keyword card may hijack it.
+    const lastAi = [...s.chat].reverse().find((m) => m.role === 'system' && m.resp);
+    const lastIdx = lastAi ? s.chat.indexOf(lastAi) : -1;
+    const pendIdx = lastAi?.resp ? lastAi.resp.blocks.findIndex((b) => b.type === 'data' && 'status' in b.r && b.r.status === 'pending' && (b.r.kind === 'add_person' || b.r.kind === 'add_supplier')) : -1;
+    const asked = !!lastAi?.resp && pendIdx < 0 && lastAi.resp.blocks.some((b) => b.type === 'ask' || (b.type === 'md' && /\?\s*(\n|$)/.test(b.text)) || (b.type === 'data' && b.r.kind === 'notfound' && /\?/.test(b.r.headline)));
+    const answers = looksLikeAnswers(t);
+    const fresh = !answers && /^(show|list|add|update|change|create|hire|onboard|what|who|how|why|when|which|where|hi|hey|hello|need|i need|mark|received|get|find|give)\b/i.test(t);
+    let followUp = false;
+    if (pendIdx >= 0 && !fresh) {
+      const b = lastAi!.resp!.blocks[pendIdx] as Extract<Block, { type: 'data' }>;
+      const next = mergeAnswers(b.r, t, s);
+      if (next) {
+        update((d) => { const m = d.chat.find((x) => x.id === lastAi!.id); const bb = m?.resp?.blocks[pendIdx]; if (bb && bb.type === 'data' && 'status' in bb.r) bb.r = { ...bb.r, status: 'replaced' } as typeof bb.r; });
+        put0({ title: '', blocks: [{ type: 'data', r: next }], sources: [], actions: [], links: [] }); return true;
+      }
+    }
+    if (asked && !fresh) {
+      const prevUser = [...s.chat.slice(0, lastIdx)].reverse().find((m) => m.role === 'user')?.text || '';
+      const combined = prevUser ? `${prevUser}\n${t}` : t;
+      const ci = prevUser ? parseRules(combined) : null;
+      if (ci && ['add_person', 'add_supplier', 'receive_stock', 'update_record'].includes(ci.tool)) { put0({ title: '', blocks: [{ type: 'data', r: build(ci, s, 'rules', combined) }], sources: [], actions: [], links: [] }); return true; }
+      followUp = true;
+    }
+    if (answers && !looksLikeData(t)) followUp = true;
+    if (followUp) { normal(); return true; }
     const pre = parseRules(t);
-    const mutation = pre && ['add_supplier', 'receive_stock', 'update_record'].includes(pre.tool);
+    const mutation = pre && ['add_person', 'add_supplier', 'receive_stock', 'update_record'].includes(pre.tool);
     const dom = !mutation && (!/\b(suppliers?|vendors?)\b/i.test(t) || /\b(rejections?|quality|defects?)\b/i.test(t)) ? domainOf(t, s) : null;
     if (dom) {
       const base = domainView(dom.domain, s, dom.name);
@@ -204,21 +244,22 @@ export function useChat() {
     // General questions (date/time, maths, GST calculations, definitions, supplier list, off-topic) go to the AI even if a keyword matches a canned card.
     const general = /\d+(\.\d+)?\s?%\s*(of|gst|on)\b|\b(calculate|what is|what's|whats|define|meaning of)\b(?!.*\b(so-|inv-|pr-|po-))|\b(today'?s date|what (day|date|time)|diwali|holiday|festival|joke)\b|who are (my|our) suppliers|list (my|our|all) suppliers|\b(python|code|insurance|invest)/i.test(t);
     const isLive = r.blocks.some((b) => b.type === 'live'); const generic = general || r.title === 'Here is what I can help with';
-    if (!isLive && !generic) { setTimeout(() => put(r), 450); return; } // a known business question: answer from the data
+    if (!followUp && !isLive && !generic) { setTimeout(() => put(r), 450); return; } // a known business question: answer from the data
     // Everything else goes through the AI first: small talk, questions, vague and clear sourcing needs.
     const context = bizContext(s);
-    const history = s.chat.slice(-12).flatMap((m): Turn[] => m.role === 'user' ? [{ role: 'user' as const, text: m.text }] : m.resp ? [{ role: 'ai' as const, text: [m.resp.title, ...m.resp.blocks.map((b) => ('text' in b ? b.text : b.type === 'data' ? b.r.headline : ''))].filter(Boolean).join(' ').slice(0, 300) }] : []);
+    const history = s.chat.slice(-12).flatMap((m): Turn[] => m.role === 'user' ? [{ role: 'user' as const, text: m.text }] : m.resp ? [{ role: 'ai' as const, text: [m.resp.title, ...m.resp.blocks.map((b) => ('text' in b ? b.text : b.type === 'data' ? b.r.headline : b.type === 'ask' ? 'Asked: ' + b.items.map((x) => x.q).join(' / ') : ''))].filter(Boolean).join(' ').slice(0, 300) }] : []);
     // If the connection drops, keep the message and try again once it's back (the Reconnecting pill shows meanwhile).
     const assist = async (): Promise<Intent> => { for (let k = 0; ; k++) { try { return await live.assist(t, context, history); } catch (e) { if (!(e instanceof Offline) || k >= 20) throw e; await new Promise((r) => setTimeout(r, 3000)); } } };
     const cap = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('slow')), 25000));
     Promise.race([assist(), cap]).then((a) => {
       if (a.kind === 'sourcing') return put({ title: 'Checking live stock and your suppliers', blocks: [{ type: 'live', text: t }], sources: [], actions: [], links: [{ label: 'Open Live sourcing', to: '/sourcing/live' }] });
-      put({ title: '', blocks: [{ type: 'md', at: Date.now(), text: a.reply + (a.questions.length ? '\n' + a.questions.map((x) => `- ${x.q}${x.options.length ? ` (${x.options.join(' / ')})` : ''}`).join('\n') : '') }], sources: [], actions: [], links: a.kind === 'greeting' ? [{ label: 'Live sourcing', to: '/sourcing/live' }, { label: 'Approvals', to: '/approvals' }] : [] });
+      put({ title: '', blocks: [{ type: 'md', at: Date.now(), text: a.reply }, ...(a.questions.length ? [{ type: 'ask' as const, items: a.questions }] : [])], sources: [], actions: [], links: a.kind === 'greeting' ? [{ label: 'Live sourcing', to: '/sourcing/live' }, { label: 'Approvals', to: '/approvals' }] : [] });
     }).catch(() => put(generic || isLive ? { title: '', blocks: [{ type: 'text', text: "That took too long – I couldn't reach the AI just now. Nothing was sent or changed." }, ...(isLive ? [] : r.blocks)], sources: [], actions: [{ label: 'Try again', kind: `ask:${t}`, primary: true }], links: [] } : r));
     }
   };
   const askRef = useRef(ask); askRef.current = ask;
   useEffect(() => { const h = (e: Event) => askRef.current(String((e as CustomEvent).detail || '')); window.addEventListener('bw-ask', h); return () => window.removeEventListener('bw-ask', h); }, []);
+  useEffect(() => { const h = (e: Event) => { const line = String((e as CustomEvent).detail || ''); setQ((v) => (v.trim() ? v.replace(/\s*$/, '\n') : '') + line); }; window.addEventListener('bw-fill', h); return () => window.removeEventListener('bw-fill', h); }, []);
   return { q, setQ, ask, thinking, stage };
 }
 export type Chat = ReturnType<typeof useChat>;

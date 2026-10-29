@@ -4,13 +4,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, PackagePlus, PenLine, Table2, BarChart3, SearchX, CheckCircle2, X, ArrowRight, ArrowUpDown, ArrowUp, ArrowDown, Lightbulb, Cpu, ContactRound, AlertTriangle, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { useStore } from '../lib/store';
 import type { Result, Col, Row, Act, Kpi, Bar } from '../lib/dataAgent';
-import { apply, missingFields, validGstin, maskPhone } from '../lib/dataAgent';
+import { apply, missingFields, validGstin, maskPhone, personMissing, type NewPerson } from '../lib/dataAgent';
 import { cx } from './ui';
 
 const inr = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 export const askInChat = (text: string) => window.dispatchEvent(new CustomEvent('bw-ask', { detail: text }));
 
 const KIND: Record<Result['kind'], { icon: React.ElementType; tone: string; tool: string }> = {
+  add_person: { icon: UserPlus, tone: 'from-pink-500 to-rose-500', tool: 'add_person' },
   add_supplier: { icon: UserPlus, tone: 'from-violet-500 to-indigo-500', tool: 'add_supplier' },
   receive: { icon: PackagePlus, tone: 'from-emerald-500 to-teal-500', tool: 'receive_stock' },
   update: { icon: PenLine, tone: 'from-amber-500 to-orange-500', tool: 'update_record' },
@@ -126,6 +127,7 @@ function Bars({ bars, title }: { bars: Bar[]; title: string }) {
 function Done({ text, to, label }: { text: string; to?: string; label?: string }) {
   return <div className="flex w-full flex-wrap items-center gap-2 text-[12.5px]" data-testid="data-done"><CheckCircle2 size={15} className="text-emerald-600" /><span className="font-medium text-emerald-700">{text}</span>{to && <Link to={to} className="ml-auto inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">{label}<ArrowRight size={12} /></Link>}</div>;
 }
+const Replaced = () => <div className="flex items-center gap-2 text-[12.5px] text-slate-500" data-testid="data-replaced"><ArrowDown size={14} /> Updated with your answers – see the card below.</div>;
 const Cancelled = () => <div className="flex items-center gap-2 text-[12.5px] text-slate-500" data-testid="data-cancelled"><X size={14} /> Cancelled – nothing was changed.</div>;
 
 function useCommit(msgId: number, idx: number) {
@@ -164,7 +166,7 @@ function AddSupplier({ r, msgId, idx }: { r: Extract<Result, { kind: 'add_suppli
     );
   };
   return (
-    <Shell r={r} footer={r.status === 'saved' ? <Done text={`${c.supplier} saved to Supplier contacts`} to="/suppliers" label="View" /> : r.status === 'cancelled' ? <Cancelled /> : <>
+    <Shell r={r} footer={r.status === 'saved' ? <Done text={`${c.supplier} saved to Supplier contacts`} to="/suppliers" label="View" /> : r.status === 'replaced' ? <Replaced /> : r.status === 'cancelled' ? <Cancelled /> : <>
       <Primary testid="data-confirm" disabled={!c.supplier.trim()} onClick={() => commit({ ...r, contact: c }, 'saved')}>Save supplier</Primary>
       <Ghost testid="data-cancel" onClick={() => commit(r, 'cancelled')}>Cancel</Ghost>
       <span className="ml-auto text-2xs text-slate-400">{miss.length ? `${miss.length} missing · you can add them later` : 'All set'}</span>
@@ -177,6 +179,45 @@ function AddSupplier({ r, msgId, idx }: { r: Extract<Result, { kind: 'add_suppli
         <F k="supplies" label="What they supply" ph="e.g. MS sheet, pipes" wide /><F k="terms" label="Payment terms" ph="Net 30" />
       </div>
       {c.skus.length > 0 && <div className="text-[12px] text-slate-500">Will be matched for: {c.skus.map((x) => <span key={x} className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">{x}</span>)}</div>}
+    </Shell>
+  );
+}
+
+
+function AddPerson({ r, msgId, idx }: { r: Extract<Result, { kind: 'add_person' }>; msgId: number; idx: number }) {
+  const commit = useCommit(msgId, idx);
+  const [p, setP] = useState<NewPerson>(r.person);
+  const pending = r.status === 'pending';
+  const miss = personMissing(p);
+  const F = ({ k, label, ph, req, type }: { k: keyof NewPerson; label: string; ph?: string; req?: boolean; type?: string }) => {
+    const v = String(p[k] || ''); const isMiss = req && !v;
+    return (
+      <label className={cx('block rounded-xl border px-3 py-1.5 transition focus-within:border-brand-300 focus-within:ring-4 focus-within:ring-brand-500/10', isMiss ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200 bg-white')}>
+        <span className="flex items-center justify-between text-2xs font-medium text-slate-400">{label}{isMiss ? <span className="font-semibold text-amber-600">Needed</span> : !req && !v && pending ? <span className="text-slate-300">Optional</span> : null}</span>
+        {pending ? <input data-field={k} type={type} defaultValue={v} placeholder={ph} onBlur={(e) => setP((x) => ({ ...x, [k]: e.target.value.trim() }))} className="w-full bg-transparent text-[13.5px] text-slate-900 outline-none placeholder:text-slate-300" />
+          : <div className="truncate text-[13.5px] text-slate-900">{v || '—'}</div>}
+      </label>
+    );
+  };
+  const initials = (p.name || '?').split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
+  return (
+    <Shell r={r} footer={r.status === 'saved' ? <Done text={`${p.name} added to People & HR · ${p.id}`} to="/people" label="Open People & HR" /> : r.status === 'replaced' ? <Replaced /> : r.status === 'cancelled' ? <Cancelled /> : <>
+      <Primary testid="data-confirm" disabled={!p.name.trim()} onClick={() => commit({ ...r, person: { ...p, role: p.role || 'Team member' } }, 'saved')}>Add to People & HR</Primary>
+      <Ghost testid="data-cancel" onClick={() => commit(r, 'cancelled')}>Cancel</Ghost>
+      <span className="ml-auto text-2xs text-slate-400">{miss.length ? `${miss.join(' & ')} needed · or reply in chat` : 'Optional fields can stay blank'}</span>
+    </>}>
+      {r.dupOf && <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800"><AlertTriangle size={14} /> Someone with this name is already in People & HR.</div>}
+      <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-rose-50 to-violet-50 px-3 py-2.5" data-testid="person-head">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[13px] font-semibold text-rose-600 shadow-sm">{initials}</span>
+        <div className="min-w-0"><div className="truncate text-[14px] font-semibold text-slate-900">{p.name || 'New team member'}</div><div className="truncate text-[12px] text-slate-500">{[p.role || 'Role not set', p.team, p.type].filter(Boolean).join(' · ')}</div></div>
+        <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-2xs font-medium text-slate-500">{p.id}</span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2" data-testid="person-form">
+        <F k="name" label="Full name" ph="e.g. Saad Ansari" req /><F k="role" label="Role" ph="e.g. Co-founder, Accountant" req />
+        <F k="team" label="Team" ph="e.g. Management, Sales" /><F k="type" label="Employment type" ph="Full time / Contract / Intern" />
+        <F k="start" label="Start date" ph="YYYY-MM-DD" /><F k="manager" label="Reports to" ph="optional" />
+        <F k="pay" label="Compensation" ph="optional, e.g. ₹60,000 / month" />
+      </div>
     </Shell>
   );
 }
@@ -281,6 +322,7 @@ function ViewCard({ r }: { r: Extract<Result, { kind: 'view' }> }) {
 }
 
 export function DataView({ r, msgId, idx }: { r: Result; msgId: number; idx: number }) {
+  if (r.kind === 'add_person') return <AddPerson r={r} msgId={msgId} idx={idx} />;
   if (r.kind === 'add_supplier') return <AddSupplier r={r} msgId={msgId} idx={idx} />;
   if (r.kind === 'receive') return <Receive r={r} msgId={msgId} idx={idx} />;
   if (r.kind === 'update') return <Update r={r} msgId={msgId} idx={idx} />;

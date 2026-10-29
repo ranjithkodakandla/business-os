@@ -263,7 +263,7 @@ const teamRows: [string, string, EmpRow[]][] = [
 ];
 export type Employee = {
   id: string; name: string; role: string; team: string; manager: string; type: 'Permanent' | 'Contract'; shift: string; site: string;
-  status: 'Present' | 'Absent' | 'On leave' | 'Late'; checkIn: string; checkOut: string; leave: string; exception?: string; pf: boolean; esi: boolean; joined: string; contractor?: string;
+  status: 'Present' | 'Absent' | 'On leave' | 'Late'; checkIn: string; checkOut: string; leave: string; exception?: string; pf: boolean; esi: boolean; joined: string; contractor?: string; pay?: string; employment?: string;
 };
 const specials: Record<string, Partial<Employee>> = {
   'Manoj Paswan': { status: 'Absent', checkIn: '—', exception: 'No punch – absent without intimation' },
