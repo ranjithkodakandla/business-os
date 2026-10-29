@@ -222,7 +222,7 @@ setInterval(() => { if (emailBackend()) void checkEmail(); }, 5 * 60 * 1000);
 app.use(express.static(dist, { index: 'index.html' }));
 app.get(/^\/(?!api\/|twilio\/|webhook).*/, (req, res, next) => { if (req.method !== 'GET' || path.extname(req.path)) return next(); res.sendFile(path.join(dist, 'index.html')); });
 
-app.listen(cfg.port, '127.0.0.1', () => {
+app.listen(cfg.port, process.env.HOST || '127.0.0.1', () => {
   console.log(`[server] http://127.0.0.1:${cfg.port}  modes=${JSON.stringify({ ...modes(), ...(emailBackend() && runtime.emailOk === null ? { email: 'checking' } : {}) })}`);
   if (cfg.publicBaseUrl === 'auto') {
     const p = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${cfg.port}`], { stdio: ['ignore', 'pipe', 'pipe'] });
