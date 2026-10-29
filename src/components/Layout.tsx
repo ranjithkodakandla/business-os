@@ -170,7 +170,7 @@ function Topbar() {
       <div className="flex shrink-0 items-center gap-1.5">
         <GlobalSearch />
         <label className="hidden items-center gap-1 lg:flex" title="View the app as a role"><span className="hidden text-2xs text-slate-400 2xl:inline">View as</span>
-          <select data-testid="role-switch" value={roleOf(s)} onChange={(e) => { update((d) => { d.role = e.target.value as Role; }); nav('/'); }} className="h-8 rounded-lg border border-slate-200 bg-white/80 px-2 text-[12px] font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-300">{ROLES.map((r) => <option key={r}>{r}</option>)}</select></label><div className="hidden rounded-lg bg-slate-100 p-0.5 text-2xs font-medium sm:flex" title="Interface language (navigation & greeting)">
+          <select data-testid="role-switch" value={s.vendor ? 'Platform owner' : roleOf(s)} onChange={(e) => { const v = e.target.value; if (v === 'Platform owner') { update((d) => { d.vendor = true; d.role = 'Owner'; }); nav('/platform'); return; } update((d) => { d.role = v as Role; d.vendor = false; d.tenant = 't-aarohan'; }); nav('/'); }} className="h-8 rounded-lg border border-slate-200 bg-white/80 px-2 text-[12px] font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-300">{ROLES.map((r) => <option key={r}>{r}</option>)}<option>Platform owner</option></select></label><div className="hidden rounded-lg bg-slate-100 p-0.5 text-2xs font-medium sm:flex" title="Interface language (navigation & greeting)">
           {(['en', 'hi', 'te'] as const).map((l) => (
             <button key={l} data-lang={l} onClick={() => update((d) => { d.lang = l; })} className={cx('rounded px-2 py-1', s.lang === l ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}>{l === 'en' ? 'EN' : l === 'hi' ? 'हिं' : 'తె'}</button>
           ))}
@@ -203,9 +203,11 @@ function Topbar() {
               <div className="px-3 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-wider text-slate-400">View as role</div>
               <div className="grid grid-cols-2 gap-1 px-2 pb-2">
                 {ROLES.map((r) => (
-                  <button key={r} data-role={r} onClick={() => { update((d) => { d.role = r as Role; }); setProf(false); nav('/'); }} className={cx('rounded-md px-2 py-1 text-left text-[12px]', roleOf(s) === r ? 'bg-brand-50 font-semibold text-brand-700' : 'text-slate-600 hover:bg-slate-50')}>{r}<span className="block truncate text-[10px] font-normal text-slate-400">{ROLE_USER[r as Role].name}</span></button>
+                  <button key={r} data-role={r} onClick={() => { update((d) => { d.role = r as Role; d.vendor = false; d.tenant = 't-aarohan'; }); setProf(false); nav('/'); }} className={cx('rounded-md px-2 py-1 text-left text-[12px]', roleOf(s) === r ? 'bg-brand-50 font-semibold text-brand-700' : 'text-slate-600 hover:bg-slate-50')}>{r}<span className="block truncate text-[10px] font-normal text-slate-400">{ROLE_USER[r as Role].name}</span></button>
                 ))}
               </div>
+              <button data-role="Platform owner" onClick={() => { update((d) => { d.vendor = true; d.role = 'Owner'; }); setProf(false); nav('/platform'); }} className="mx-2 mb-2 block w-[calc(100%-1rem)] rounded-md px-2 py-1 text-left text-[12px] text-slate-600 hover:bg-slate-50">Platform owner<span className="block text-[10px] text-slate-400">Ranjith Kumar · SaaS vendor</span></button>
+              {s.vendor && <button data-testid="platform-admin-link" onClick={() => { setProf(false); nav('/platform'); }} className="block w-full bg-gradient-to-r from-indigo-50 to-sky-50 px-3 py-1.5 text-left text-[13px] font-semibold text-indigo-700">Platform admin →</button>}
               <div className="my-1 border-t border-slate-100" />
               {[['Company profile', () => setProfile(true)], ['Agents & automations', () => nav('/agents')], ['Connected apps', () => nav('/integrations')], ['Quick setup', () => nav('/setup')]].map(([l, f]) => (
                 <button key={l as string} onClick={() => { (f as () => void)(); setProf(false); }} className="block w-full px-3 py-1.5 text-left text-[13px] text-slate-700 hover:bg-slate-50">{l as string}</button>

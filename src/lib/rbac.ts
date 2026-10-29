@@ -1,3 +1,4 @@
+import { stageAllows, type Rollout } from '../platform/rollout';
 /** Role-based access. Every module has a scope; the permissions matrix (editable in Settings) drives nav, Home, search and the AI. */
 export type Role = 'Owner' | 'Sales' | 'Stores' | 'Accounts' | 'HR' | 'Supervisor';
 export const ROLES: Role[] = ['Owner', 'Sales', 'Stores', 'Accounts', 'HR', 'Supervisor'];
@@ -23,9 +24,11 @@ export const defaultPerms = (role: Role, key: string): Perm[] => {
   const own: Record<string, string[]> = { Sales: ['sales', 'orders', 'inbox'], Stores: ['inventory', 'procurement', 'qc', 'dispatch'], Accounts: ['finance', 'gst', 'bank', 'payroll', 'expenses', 'collections'], HR: ['people', 'attendance', 'payroll'], Supervisor: ['operations', 'attendance', 'bom', 'qc'] };
   return own[role].includes(key) ? ['view', 'create', 'edit', ...(role === 'Accounts' || role === 'HR' ? ['approve' as Perm] : [])] : ['view'];
 };
-type S = { role?: Role; perms?: Matrix };
+type S = { role?: Role; perms?: Matrix; tenant?: string; plat?: { flags: Record<string, Record<string, boolean>>; rollout?: Record<string, Rollout> } };
+/** Platform feature flags for the tenant being viewed switch modules off for every role. */
+export const flagOn = (s: S, key: string) => { const t = s.tenant || 't-aarohan'; return s.plat?.flags?.[t]?.[key] !== false && stageAllows(s.plat?.rollout?.[key], key, t); };
 export const roleOf = (s: S): Role => s.role || 'Owner';
 export const permsFor = (s: S, key: string, role = roleOf(s)): Perm[] => s.perms?.[role]?.[key] ?? defaultPerms(role, key);
-export const can = (s: S, key: string, p: Perm = 'view', role = roleOf(s)) => permsFor(s, key, role).includes(p);
+export const can = (s: S, key: string, p: Perm = 'view', role = roleOf(s)) => flagOn(s, key) && permsFor(s, key, role).includes(p);
 /** Map an AI domain / keyword area to the module that owns it. */
 export const DOMAIN_MODULE: Record<string, string> = { business: 'reports', compliance: 'gst', sourcing: 'suppliers', approvals: 'approvals', compare: 'reports', payables: 'finance', receivables: 'finance', purchases: 'procurement', dispatch: 'operations', pipeline: 'sales', quality: 'operations', customer: 'sales', item: 'inventory', sales: 'sales', customers: 'sales', orders: 'orders', inventory: 'inventory', stock: 'inventory', procurement: 'procurement', suppliers: 'suppliers', operations: 'operations', production: 'operations', jobwork: 'jobwork', people: 'people', hr: 'people', attendance: 'attendance', finance: 'finance', cash: 'finance', collections: 'collections', payroll: 'payroll', gst: 'gst', inbox: 'inbox', audit: 'audit', settings: 'settings' };

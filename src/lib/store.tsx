@@ -1,3 +1,4 @@
+import { seedPlat } from '../platform/data';
 import { setP1AuditSink, resetP1 } from './p1Data';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as D from './data';
@@ -32,7 +33,7 @@ export type DemoState = {
   purchases: Purchase[];
   sourcing: { status: 'idle' | 'running' | 'done'; startedAt?: number; sent: Record<string, Channel>; picks: Record<string, string>; poDraft: boolean; poApproved: boolean; calls: string[] };
   sprint: { status: 'idle' | 'running' | 'done'; startedAt?: number; target: number; calls: string[] };
-  role: import('./rbac').Role; perms: import('./rbac').Matrix; audit: AuditEntry[]; p0: import('./p0data').P0;
+  role: import('./rbac').Role; perms: import('./rbac').Matrix; audit: AuditEntry[]; p0: import('./p0data').P0; vendor: boolean; tenant: string; plat: import('../platform/data').PlatState;
 };
 export const initial = (): DemoState => ({
   orders: clone(D.orders), opportunities: clone(D.opportunities), skus: clone(D.skus), prs: clone(D.purchaseRequests), pos: clone(D.purchaseOrders),
@@ -48,7 +49,7 @@ export const initial = (): DemoState => ({
   purchases: [],
   sourcing: { status: 'idle', sent: {}, picks: {}, poDraft: false, poApproved: false, calls: [] },
   sprint: { status: 'idle', target: 500000, calls: [] },
-  role: 'Owner', perms: {}, audit: seedAudit(), p0: seedP0(),
+  role: 'Owner', perms: {}, audit: seedAudit(), p0: seedP0(), vendor: false, tenant: 't-aarohan', plat: seedPlat(),
 });
 
 const KEY = 'business-workspace-demo-v5';
@@ -76,6 +77,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const p = { ...initial(), ...JSON.parse(raw) } as DemoState;
+        if (p.plat && !p.plat.rollout) p.plat.rollout = initial().plat.rollout;
         p.tasks = p.tasks.map((t) => ({ ...t, status: 'done' as const }));
         if (p.sourcing.status === 'running') finishSourcing(p);
         if (p.sprint.status === 'running') finishSprint(p);
