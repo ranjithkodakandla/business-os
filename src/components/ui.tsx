@@ -104,9 +104,9 @@ export function Kpi({ label, value, sub, tone, icon, onClick, foot }: { label: s
 
 export function Tabs({ tabs, value, onChange, counts }: { tabs: string[]; value: string; onChange: (t: string) => void; counts?: Record<string, number | string> }) {
   return (
-    <div className="mb-4 flex gap-1 border-b border-slate-200">
+    <div className="no-scrollbar mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
       {tabs.map((t) => (
-        <button key={t} data-tab={t} onClick={() => onChange(t)} className={cx('-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors', t === value ? 'border-brand-500 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800')}>
+        <button key={t} data-tab={t} onClick={() => onChange(t)} className={cx('-mb-px flex shrink-0 whitespace-nowrap items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors', t === value ? 'border-brand-500 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800')}>
           {t}
           {counts?.[t] !== undefined && <span className={cx('rounded-full px-1.5 text-2xs', t === value ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500')}>{counts[t]}</span>}
         </button>
@@ -170,15 +170,15 @@ export function Select({ value, onChange, options, label }: { value: string; onC
 }
 export function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: React.ReactNode }[] }) {
   return (
-    <div className="inline-flex h-8 rounded-md bg-slate-100 p-0.5">
+    <div className="no-scrollbar inline-flex h-8 max-w-full overflow-x-auto rounded-md bg-slate-100 p-0.5 max-lg:h-11">
       {options.map((o) => (
-        <button key={o.value} data-seg={o.value} onClick={() => onChange(o.value)} className={cx('flex items-center gap-1.5 rounded px-2.5 text-xs font-medium', value === o.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>{o.label}</button>
+        <button key={o.value} data-seg={o.value} onClick={() => onChange(o.value)} className={cx('flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium', value === o.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>{o.label}</button>
       ))}
     </div>
   );
 }
 export function Toolbar({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
-  return <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5"><div className="flex flex-wrap items-center gap-2">{children}</div><div className="flex items-center gap-2">{right}</div></div>;
+  return <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5"><div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{children}</div><div className="flex max-w-full flex-wrap items-center gap-2">{right}</div></div>;
 }
 
 export function Modal({ open, onClose, title, subtitle, children, footer, width = 'max-w-lg' }: { open: boolean; onClose: () => void; title: React.ReactNode; subtitle?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; width?: string }) {
@@ -189,8 +189,8 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
   }, [onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-6 backdrop-blur-sm" onMouseDown={onClose}>
-      <div role="dialog" className={cx('fadein w-full rounded-2xl border border-slate-200/70 bg-white shadow-lift', width)} onMouseDown={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-0 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={onClose}>
+      <div role="dialog" className={cx('fadein w-full max-w-full rounded-t-2xl pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:pb-0 border border-slate-200/70 bg-white shadow-lift', width)} onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between border-b border-slate-100 px-5 py-3.5">
           <div>
             <h2 className="text-[15px] font-semibold text-slate-900">{title}</h2>
@@ -198,8 +198,8 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           </div>
           <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
         </div>
-        <div className="max-h-[68vh] overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">{footer}</div>}
+        <div className="max-h-[68vh] overflow-y-auto overflow-x-auto px-4 py-4 sm:px-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">{footer}</div>}
       </div>
     </div>
   );

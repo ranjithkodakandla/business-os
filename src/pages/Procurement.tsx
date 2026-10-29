@@ -20,7 +20,7 @@ export function ProcurementList() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Procurement' }]} title="Procurement" subtitle="Purchase requests, quotes, purchase orders and suppliers. Nothing is ordered without your approval."
         actions={<><Button onClick={() => nav('/suppliers')}>Supplier contacts</Button><Button onClick={() => nav('/sourcing')}>Sourcing results</Button></>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Open requests" value={String(s.prs.filter((p) => !/Closed|PO issued|Approved/.test(p.status)).length)} sub="1 with quotes to review" />
         <Kpi label="POs awaiting supplier" value={String(s.pos.filter((p) => !p.confirmed && p.status !== 'Received').length)} sub="confirmation pending" tone="amber" />
         <Kpi label="Spend this month" value="₹6.8 lakh" sub="across 9 POs" />
@@ -152,9 +152,9 @@ export function PRDetail() {
       )}
       <Tabs tabs={['Overview', 'Quotes', 'Compare', 'Activity']} value={tab} onChange={setTab} counts={{ Quotes: 3 }} />
       {tab === 'Overview' && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card title="Requirement" className="col-span-2">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <Kpi label="Order needs" value="100" sub="SO-1051" /><Kpi label="Available" value="35" sub="53 on hand − 18 reserved" /><Kpi label="To buy" value="65" tone="red" sub="this request" /><Kpi label="Needed by" value="Fri 30 Oct" sub="10 am at Jeedimetla" />
             </div>
             <div className="mt-3 text-xs text-slate-500">HSN 7616 99 90 · Approved sources: Deccan Castings, Prime Components · Last price ₹4,600 (GRN-0784)</div>

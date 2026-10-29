@@ -34,7 +34,7 @@ export function SalesList() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Sales & CRM' }]} title="Sales & CRM" subtitle="Enquiries to orders: leads, quotations and follow-ups"
         actions={<Button variant="primary" icon={<Plus size={14} />} data-testid="add-lead" onClick={() => setAdd(true)}>Add lead</Button>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Open pipeline" value={lakh(open.reduce((a, o) => a + o.value, 0))} sub={`${open.length} opportunities`} />
         <Kpi label="Weighted forecast" value={lakh(weighted)} sub="by stage probability" />
         <Kpi label="Won this month" value={lakh(s.opportunities.filter((o) => o.stage === 'Won').reduce((a, o) => a + o.value, 0))} sub="2 deals" tone="green" />
@@ -45,7 +45,7 @@ export function SalesList() {
         <Select value={owner} onChange={setOwner} options={owners} />
       </Toolbar>
       {view === 'board' ? (
-        <div className="grid grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
           {STAGES.map((st) => {
             const items = rows.filter((o) => o.stage === st);
             return (
@@ -129,7 +129,7 @@ export function OpportunityDetail() {
           return <div key={st} className={cx('flex-1 rounded-md py-1.5 text-center text-2xs font-semibold', o.stage === 'Lost' ? 'bg-slate-100 text-slate-400' : i < idx ? 'bg-brand-100 text-brand-700' : i === idx ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-400')}>{st}</div>;
         })}
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card title="Details" className="col-span-2">
           <Fields cols={3}>
             <Field label="Value">{inr(o.value)}</Field><Field label="Probability">{o.probability}%</Field><Field label="Expected close">{fmtDate(o.close)}</Field>
@@ -171,7 +171,7 @@ export function CustomerDetail() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Sales & CRM', to: '/sales' }, { label: c.name }]} title={c.name} subtitle={`${c.segment} · ${c.area}, ${c.city} · customer since ${c.since}`}
         actions={<Button icon={<Phone size={14} />} onClick={() => nav(`/sales/opportunity/${opps[0]?.id ?? ''}`)} disabled={!opps.length}>Open latest opportunity</Button>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Outstanding" value={inr(owed)} sub={inv.some((i) => overdueDays(i) > 0 && outstanding(i) > 0) ? <span className="text-rose-600">Has overdue invoices</span> : 'Nothing overdue'} />
         <Kpi label="Credit limit" value={c.creditLimit ? lakh(c.creditLimit) : '—'} sub={`${c.creditDays} days credit`} />
         <Kpi label="Open orders" value={String(ords.filter((o) => o.open).length)} sub={lakh(ords.filter((o) => o.open).reduce((a, o) => a + orderValue(o), 0)) + ' + GST'} />

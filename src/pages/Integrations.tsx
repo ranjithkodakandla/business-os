@@ -21,7 +21,7 @@ export default function Integrations() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Connected apps' }]} title="Connected apps" subtitle="Keep using Tally and WhatsApp. This workspace sits on top of them." />
       <Callout tone="amber" title="Demo connections">All connections on this screen are simulated. No real Tally, WhatsApp, GST portal, bank or device is connected, and no data leaves your browser.</Callout>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {APPS.map((a) => (
           <Card key={a.id}>
             <div className="flex items-start gap-3" data-app={a.id}>

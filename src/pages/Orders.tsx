@@ -28,7 +28,7 @@ export function OrdersList() {
   return (
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Orders' }]} title="Orders" subtitle="Every sales order from confirmation to delivery, with material, production, payment and dispatch in one row" />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Open orders" value={String(open.length)} sub={lakh(open.reduce((a, o) => a + orderValue(o), 0)) + ' + GST'} />
         <Kpi label="At risk" value={String(open.filter((o) => o.risk === 'At risk').length)} sub="material short" tone="red" />
         <Kpi label="Ready for dispatch" value={String(open.filter((o) => o.status === 'Ready for dispatch').length)} sub="packed & QC passed" tone="green" />
@@ -104,7 +104,7 @@ export function OrderDetail() {
       )}
       <Tabs tabs={['Overview', 'Items', 'Production', 'Materials', 'Dispatch', 'Documents', 'Activity']} value={tab} onChange={setTab} />
       {tab === 'Overview' && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card title="Commitment" className="col-span-2">
             <Fields cols={3}>
               <Field label="Promised delivery">{fmtShort(o.promised)}</Field><Field label="Order value">{inr(taxable)} + GST</Field><Field label="Invoice value (incl. GST)">{inr(g.total)}</Field>
@@ -148,7 +148,7 @@ export function OrderDetail() {
         <Card title="Material requirement" subtitle="Checked live against inventory and open purchase orders">
           {sku ? (
             <>
-              <div className="grid grid-cols-5 gap-3" data-testid="material-summary">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5" data-testid="material-summary">
                 <Kpi label="Required" value={String(o.materialNeed)} sub={sku.name} />
                 <Kpi label="On hand" value={String(sku.onHand)} sub={sku.location} />
                 <Kpi label="Reserved elsewhere" value={String(sku.reserved)} sub={is51 ? 'SO-1047 · SO-1052' : 'other orders'} />

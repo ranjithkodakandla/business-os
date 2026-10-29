@@ -25,7 +25,7 @@ export default function Reports() {
       <Callout tone="amber" icon={<Lightbulb size={16} />} title="What the numbers say" >
         <span data-testid="report-insight">Sales are growing, but collection speed is slowing. Review overdue accounts before increasing inventory commitments.</span> Revenue went from ₹{first.revenue}L to ₹{last.revenue}L, while days to collect rose from {first.dso} to {last.dso}.
       </Callout>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Revenue (Oct)" value={`₹${last.revenue}L`} sub={`+${(((last.revenue - first.revenue) / first.revenue) * 100).toFixed(0)}% vs ${first.m}`} tone="green" />
         <Kpi label="Collected (Oct)" value={`₹${last.collected}L`} sub={`${((last.collected / last.revenue) * 100).toFixed(0)}% of billing`} tone="amber" />
         <Kpi label="Days to collect (DSO)" value={`${last.dso} days`} sub={`up from ${first.dso}`} tone="red" />

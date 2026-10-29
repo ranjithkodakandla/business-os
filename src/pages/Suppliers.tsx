@@ -35,7 +35,7 @@ export default function Suppliers() {
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Procurement', to: '/procurement' }, { label: 'Supplier contacts' }]} title="Supplier contacts"
         subtitle="Who to ask, on which channel and in which language. The Sourcing agent contacts suppliers the way they prefer."
         actions={<><Button icon={<PackageSearch size={14} />} onClick={() => nav('/sourcing')}>Sourcing results</Button><Button variant="primary" data-testid="add-contact" icon={<Plus size={14} />} onClick={() => setEdit(blank(s.contacts.length + 1))}>Add contact</Button></>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Contacts" value={String(s.contacts.length)} sub={`${new Set(s.contacts.map((c) => c.supplier)).size} suppliers`} />
         {CHANNELS.map((c) => <Kpi key={c} label={`Prefer ${channelLabel(c)}`} value={String(count(c))} sub={c === 'Call' ? 'automated call, announced as such' : c === 'WhatsApp' ? 'WhatsApp Business (simulated)' : 'from purchase@aarohan (simulated)'} icon={<ChannelIcon c={c} size={15} />} />)}
       </div>

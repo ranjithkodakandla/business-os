@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { NavLink, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
+import { NavLink, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from 'recharts';
-import { Building2, ToggleRight, IndianRupee, Layers, LifeBuoy, Server, Sparkles, ShieldAlert, LogOut, Send } from 'lucide-react';
+import { Building2, ToggleRight, IndianRupee, Layers, LifeBuoy, Server, Sparkles, ShieldAlert, LogOut, Send, Menu, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../lib/store';
 import { MODULES } from '../lib/nav';
 import { Badge, Button, Card, Kpi, DataTable, SearchBox, Select, Status, Tabs, cx } from '../components/ui';
@@ -14,20 +15,30 @@ const label = (k: string) => MODULES.find((m) => m.key === k)?.label.en || k;
 const healthTone = (h: number) => (h >= 75 ? 'green' : h >= 55 ? 'amber' : 'red') as 'green' | 'amber' | 'red';
 
 export default function PlatformApp() {
-  const { s, update } = useStore(); const nav = useNavigate();
+  const { s, update } = useStore(); const nav = useNavigate(); const [menu, setMenu] = useState(false); const loc = useLocation();
+  React.useEffect(() => setMenu(false), [loc.pathname]);
+  const exit = () => { update((d) => { d.vendor = false; d.tenant = 't-aarohan'; d.role = 'Owner'; }); nav('/'); };
   if (!s.vendor) return (
     <div className="app-canvas flex min-h-screen items-center justify-center p-6"><div data-testid="platform-restricted" className="max-w-md rounded-2xl border border-slate-200 bg-white/90 p-8 text-center shadow-xl">
       <ShieldAlert className="mx-auto mb-3 text-rose-500" size={32} /><div className="text-lg font-semibold text-slate-800">Platform admin is restricted</div>
       <p className="mt-1 text-sm text-slate-500">This console is only for the platform owner. Company users can't open it.</p><Link to="/" className="mt-4 inline-block text-sm font-medium text-brand-700 underline">Back to your workspace</Link></div></div>);
   return (
     <div className="app-canvas min-h-screen">
-      <header data-testid="platform-topbar" className="topbar sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-white/60 bg-white/75 px-5 backdrop-blur-xl">
-        <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-sky-500 text-xs font-bold text-white shadow">B</span><div className="leading-tight"><div className="text-[13px] font-semibold text-slate-800">Business OS</div><div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Platform admin</div></div></div>
-        <nav className="flex flex-1 gap-1 overflow-x-auto">{NAV.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-pnav={l} className={({ isActive }) => cx('flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium', isActive ? 'tab-active bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-100' : 'text-slate-600 hover:bg-white/70')}><I size={15} />{l}</NavLink>)}</nav>
-        <div className="flex items-center gap-2 text-[12px] text-slate-500"><span className="hidden lg:inline">Ranjith Kumar · Platform owner</span>
-          <Button size="sm" icon={<LogOut size={14} />} data-testid="exit-platform" onClick={() => { update((d) => { d.vendor = false; d.tenant = 't-aarohan'; d.role = 'Owner'; }); nav('/'); }}>Customer app</Button></div>
+      <header data-testid="platform-topbar" className="topbar sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/60 bg-white/75 px-3 backdrop-blur-xl md:gap-4 md:px-5">
+        <button data-testid="plat-menu-btn" aria-label="Open menu" onClick={() => setMenu(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-white lg:hidden"><Menu size={21} /></button>
+        <div className="flex min-w-0 items-center gap-2"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-sky-500 text-xs font-bold text-white shadow">B</span><div className="min-w-0 leading-tight"><div className="truncate text-[13px] font-semibold text-slate-800">Business OS</div><div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Platform admin</div></div></div>
+        <nav className="hidden flex-1 gap-1 overflow-x-auto lg:flex">{NAV.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-pnav={l} className={({ isActive }) => cx('flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium', isActive ? 'tab-active bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-100' : 'text-slate-600 hover:bg-white/70')}><I size={15} />{l}</NavLink>)}</nav>
+        <div className="ml-auto flex shrink-0 items-center gap-2 text-[12px] text-slate-500"><span className="hidden xl:inline">Ranjith Kumar · Platform owner</span>
+          <Button size="sm" icon={<LogOut size={14} />} data-testid="exit-platform" className="max-lg:h-10" onClick={exit}><span className="hidden sm:inline">Customer app</span></Button></div>
       </header>
-      <main className="mx-auto max-w-[1500px] p-5">
+      {menu && createPortal(<div className="fixed inset-0 z-[70] lg:hidden" role="dialog" aria-modal="true" aria-label="Platform menu">
+        <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-sm" onClick={() => setMenu(false)} />
+        <aside data-testid="plat-drawer" className="drawer-in absolute inset-y-0 left-0 flex w-[min(320px,86vw)] flex-col bg-white/95 shadow-2xl" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div className="leading-tight"><div className="text-[15px] font-semibold text-slate-900">Platform admin</div><div className="text-[12px] text-slate-500">Ranjith Kumar · Platform owner</div></div><button aria-label="Close menu" onClick={() => setMenu(false)} className="grid h-11 w-11 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+          <nav className="flex-1 overflow-y-auto p-2">{NAV.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-mpnav={l} onClick={() => setMenu(false)} className={({ isActive }) => cx('flex min-h-[46px] items-center gap-3 rounded-xl px-3 text-[14.5px] font-medium', isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 active:bg-slate-100')}><I size={17} />{l}</NavLink>)}</nav>
+          <div className="border-t border-slate-100 p-3"><Button icon={<LogOut size={15} />} className="h-11 w-full" onClick={() => { setMenu(false); exit(); }}>Back to customer app</Button></div>
+        </aside></div>, document.body)}
+      <main className="mx-auto max-w-[1500px] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-5">
         <Routes>
           <Route path="/platform" element={<Companies />} /><Route path="/platform/companies/:id" element={<CompanyDetail />} /><Route path="/platform/flags" element={<Flags />} />
           <Route path="/platform/billing" element={<Billing />} /><Route path="/platform/plans" element={<Plans />} /><Route path="/platform/support" element={<Support />} />
@@ -36,7 +47,7 @@ export default function PlatformApp() {
       </main>
     </div>);
 }
-const H = ({ t, sub, right }: { t: string; sub?: string; right?: React.ReactNode }) => <div className="mb-4 flex items-end justify-between"><div><h1 className="text-xl font-semibold text-slate-900">{t}</h1>{sub && <p className="text-sm text-slate-500">{sub}</p>}</div>{right}</div>;
+const H = ({ t, sub, right }: { t: string; sub?: string; right?: React.ReactNode }) => <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><div className="min-w-0"><h1 className="text-xl font-semibold text-slate-900">{t}</h1>{sub && <p className="text-sm text-slate-500">{sub}</p>}</div>{right}</div>;
 
 function Companies() {
   const { s } = useStore(); const p = s.plat; const nav = useNavigate();
@@ -79,7 +90,7 @@ function Rollouts() {
   const gets = p.tenants.filter((t) => p.flags[t.id]?.[sel] !== false && stageAllows(r, sel, t.id));
   const pick = (list: 'alpha' | 'beta') => <div className="flex flex-wrap gap-1">{p.tenants.filter((t) => !INTERNAL.includes(t.id)).map((t) => { const on = r[list].includes(t.id); return <button key={t.id} data-pick={`${list}:${t.id}`} onClick={() => change((x) => { x[list] = on ? x[list].filter((y) => y !== t.id) : [...x[list], t.id]; }, `${list === 'alpha' ? 'Alpha' : 'Beta opt-in'} ${on ? '−' : '+'} ${t.name}`)} className={cx('rounded-full border px-2 py-0.5 text-[11px]', on ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500')}>{t.name.split(' ').slice(0, 2).join(' ')}</button>; })}</div>;
   return (<div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-    <Card pad={false} title="Flags"><div className="max-h-[640px] overflow-auto">{FLAG_KEYS.map((k) => { const x = p.rollout[k]; return <button key={k} data-rflag={k} onClick={() => setSel(k)} className={cx('flex w-full items-center justify-between border-b border-slate-50 px-3 py-2 text-left text-[13px]', sel === k && 'bg-indigo-50/60')}><span>{label(k)}</span>{x.killed ? <Badge tone="red">Killed</Badge> : <Badge tone={STAGE_TONE[x.stage]}>{x.stage === 'Gradual' ? `Gradual ${x.pct}%` : x.stage}</Badge>}</button>; })}</div></Card>
+    <Card pad={false} title="Flags"><div className="max-h-[300px] overflow-auto lg:max-h-[640px]">{FLAG_KEYS.map((k) => { const x = p.rollout[k]; return <button key={k} data-rflag={k} onClick={() => { setSel(k); if (window.innerWidth < 1024) setTimeout(() => document.querySelector('[data-testid=rollout-detail]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }} className={cx('flex w-full items-center justify-between border-b border-slate-50 px-3 py-2 text-left text-[13px]', sel === k && 'bg-indigo-50/60')}><span>{label(k)}</span>{x.killed ? <Badge tone="red">Killed</Badge> : <Badge tone={STAGE_TONE[x.stage]}>{x.stage === 'Gradual' ? `Gradual ${x.pct}%` : x.stage}</Badge>}</button>; })}</div></Card>
     <div className="space-y-4" data-testid="rollout-detail">
       <Card title={<span>{label(sel)} <span className="text-2xs font-normal text-slate-400">flag key: module.{sel}</span></span>} actions={r.killed
         ? <Button size="sm" data-testid="kill-restore" onClick={() => change((x) => { x.killed = false; }, 'Kill switch released')}>Release kill switch</Button>
@@ -94,7 +105,7 @@ function Rollouts() {
       <Card title={`Who gets it now · ${gets.length} of ${p.tenants.length}`} pad={false}><div data-testid="who-gets" className="grid grid-cols-2 gap-x-4 p-3 text-[12px] lg:grid-cols-3">{p.tenants.map((t) => { const g = gets.includes(t); return <div key={t.id} data-gets={t.id} data-on={g ? '1' : '0'} className={cx('flex items-center justify-between border-b border-slate-50 py-1', !g && 'text-slate-400')}><span>{g ? '✓' : '–'} {t.name}</span><span className="text-[10px]">{INTERNAL.includes(t.id) ? 'internal' : r.stage === 'Gradual' ? `bucket ${bucket(sel, t.id)}` : p.flags[t.id]?.[sel] === false ? 'not in plan' : ''}</span></div>; })}</div></Card>
       <Card title="Rollout history" pad={false}><div data-testid="rollout-history">{r.history.map((h, i) => <div key={i} className="flex gap-3 border-b border-slate-50 px-3 py-1.5 text-[12px]"><span className="w-28 shrink-0 text-slate-400">{h.at}</span><span className="flex-1">{h.text}</span><span className="text-slate-400">{h.by}</span></div>)}</div></Card>
     </div>
-    {kill && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40"><div data-testid="kill-confirm" className="w-[420px] rounded-2xl bg-white p-5 shadow-2xl"><div className="text-lg font-semibold text-rose-700">Kill {label(kill)} everywhere?</div><p className="mt-1 text-sm text-slate-600">Instantly disables it for all {p.tenants.length} companies, overriding stage and plan. Logged to the audit trail.</p>
+    {kill && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setKill('')}><div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} data-testid="kill-confirm" className="w-full max-w-[420px] rounded-2xl bg-white p-5 shadow-2xl"><div className="text-lg font-semibold text-rose-700">Kill {label(kill)} everywhere?</div><p className="mt-1 text-sm text-slate-600">Instantly disables it for all {p.tenants.length} companies, overriding stage and plan. Logged to the audit trail.</p>
       <div className="mt-4 flex justify-end gap-2"><Button onClick={() => setKill('')}>Cancel</Button><Button variant="danger" data-testid="kill-confirm-yes" onClick={() => { change((x) => { x.killed = true; }, 'KILL SWITCH — disabled everywhere', kill); setKill(''); }}>Kill now</Button></div></div></div>}
   </div>);
 }

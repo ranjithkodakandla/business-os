@@ -24,7 +24,7 @@ export function InventoryList() {
   return (
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Inventory' }]} title="Inventory" subtitle="Stock on hand, reserved for orders, and what is actually free to use" />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Stock value" value={lakh(value)} sub={`${s.skus.length} items · 2 stores`} />
         <Kpi label="Below reorder level" value={String(s.skus.filter(isLow).length)} sub="incl. Component A-17" tone="amber" onClick={() => setSp({ view: 'Low stock' })} />
         <Kpi label="Slow moving (120+ days)" value={lakh(s.skus.filter((k) => k.agingDays > 120).reduce((a, k) => a + k.onHand * k.unitCost, 0))} sub="2 items · cash tied up" tone="red" onClick={() => setSp({ view: 'Slow moving' })} />
@@ -69,7 +69,7 @@ export function ItemDetail() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Inventory', to: '/inventory' }, { label: k.sku }]} title={`${k.sku} · ${k.name}`} subtitle={`${k.category} · ${k.spec} · HSN ${k.hsn} · ${k.location}`} badge={isLow(k) ? <Badge tone="amber">Below reorder level</Badge> : undefined}
         actions={existingPR ? <Button variant="primary" onClick={() => nav(`/procurement/${existingPR.id}`)}>Open {existingPR.id}</Button> : <Button variant="primary" icon={<Plus size={14} />} data-testid="create-pr" onClick={() => setPr(true)}>Create purchase request</Button>} />
-      <div className="grid grid-cols-5 gap-3" data-testid="stock-summary">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5" data-testid="stock-summary">
         <Kpi label="On hand" value={String(k.onHand)} sub={k.unit} />
         <Kpi label="Reserved" value={String(k.reserved)} sub={res.length ? res.map((r) => r.order).join(' · ') : 'for open orders'} />
         <Kpi label="Available" value={String(available(k))} tone={isLow(k) ? 'amber' : undefined} />

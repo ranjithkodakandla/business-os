@@ -28,7 +28,7 @@ export function PeopleList() {
   return (
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'People & HR' }]} title="People & HR" subtitle="Team directory, today's attendance from the biometric device, leave and shifts" />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Team" value={String(s.employees.length)} sub={`${s.employees.length - contract} permanent · ${contract} contract`} />
         <Kpi label="Present today" value={`${present} / ${s.employees.length}`} sub="biometric · Gate 1 · synced 09:12" tone="green" onClick={() => setTab('Attendance')} />
         <Kpi label="Exceptions" value={String(exceptions.length)} sub="late, missed punch, absent, leave" tone="amber" onClick={() => setTab('Attendance')} />
@@ -69,7 +69,7 @@ export function PeopleList() {
         </Card>
       </>)}
       {tab === 'Contract labour' && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card title="Sai Manpower Services" subtitle="Licensed contractor · CLRA registration (demo)" className="col-span-2">
             <Fields cols={3}><Field label="Workers deployed">{contract}</Field><Field label="Monthly bill (Oct)">₹2,48,000 · PB-0563</Field><Field label="TDS">194C @ 2% · ₹4,960</Field><Field label="ESI challan (Oct)"><Badge tone="amber">Awaiting from contractor</Badge></Field><Field label="PF ECR (Oct)"><Badge tone="amber">Awaiting from contractor</Badge></Field><Field label="Wage register">Received 26 Oct</Field></Fields>
             <div className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">As principal employer, check the contractor's ESI/PF challans before paying PB-0563. The Compliance agent will remind you on 5 Nov.</div>
@@ -97,12 +97,12 @@ export function EmployeeDetail() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'People & HR', to: '/people' }, { label: e.name }]} title={e.name} subtitle={`${e.role} · ${e.team} · ${e.id}`} badge={<Badge tone={e.type === 'Contract' ? 'violet' : 'gray'}>{e.type}</Badge>}
         actions={e.name === 'Mallesh Kurma' && !ctx.s.approvals['apr-leave'] ? <Button variant="primary" icon={<UserCheck size={14} />} onClick={() => runApproval(ctx, 'apr-leave')}>Approve leave</Button> : undefined} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card title="Details" className="col-span-2"><Fields cols={3}><Field label="Reports to">{e.manager}</Field><Field label="Shift">{e.shift}</Field><Field label="Site">{e.site}</Field><Field label="Joined">{fmtDate(e.joined)}</Field><Field label="PF">{e.pf ? 'Member' : 'Not applicable'}</Field><Field label="ESI">{e.esi ? 'Covered' : 'Not applicable'}</Field>{e.contractor && <Field label="Contractor">{e.contractor}</Field>}<Field label="Leave">{e.leave}</Field></Fields></Card>
         <Card title="Today"><div className="space-y-2 text-[13px]"><div className="flex justify-between"><span className="text-slate-500">Status</span><Status>{e.status}</Status></div><div className="flex justify-between"><span className="text-slate-500">Check-in</span><span>{e.checkIn}</span></div><div className="flex justify-between"><span className="text-slate-500">Source</span><span className="flex items-center gap-1"><Fingerprint size={12} /> Gate 1</span></div>{e.exception && <div className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{e.exception}</div>}</div></Card>
       </div>
       <Card title="Attendance · last 6 working days" actions={<CalendarClock size={15} className="text-slate-400" />}>
-        <div className="grid grid-cols-6 gap-2">{week.map((d, i) => { const st = i === 5 ? e.status : i === 4 && e.name === 'Syed Rafi' ? 'Missed check-out' : 'Present'; return <div key={d} className="rounded-lg border border-slate-200 p-2 text-center"><div className="text-2xs text-slate-400">{d}</div><div className="mt-1"><Status>{st}</Status></div></div>; })}</div>
+        <div className="grid grid-cols-3 gap-2 md:grid-cols-6">{week.map((d, i) => { const st = i === 5 ? e.status : i === 4 && e.name === 'Syed Rafi' ? 'Missed check-out' : 'Present'; return <div key={d} className="rounded-lg border border-slate-200 p-2 text-center"><div className="text-2xs text-slate-400">{d}</div><div className="mt-1"><Status>{st}</Status></div></div>; })}</div>
       </Card>
     </div>
   );

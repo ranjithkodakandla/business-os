@@ -27,7 +27,7 @@ export default function Operations() {
   return (
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Operations' }]} title="Operations" subtitle="Shop-floor plan: work orders, stages, owners and today's dispatches" />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Work orders in progress" value={String(s.workOrders.filter((w) => w.status !== 'Done').length)} sub="2 units · 2 shifts" />
         <Kpi label="Behind or blocked" value={String(s.workOrders.filter((w) => ['Behind', 'Blocked'].includes(w.status)).length)} sub="WO-3317 behind · material blocks" tone="amber" />
         <Kpi label="Plan adherence (week)" value="88%" sub="target 92%" />

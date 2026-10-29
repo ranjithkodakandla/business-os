@@ -34,7 +34,7 @@ export function FinanceHome() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Finance' }]} title="Finance" subtitle="Cash, who owes you, what you owe, and GST – in plain numbers"
         actions={<><Button icon={<Zap size={14} />} data-testid="open-sprint-finance" onClick={() => nav('/collections')}>Collections sprint</Button><Button icon={<FileDown size={14} />} data-testid="tally-export" onClick={() => tallyExport(s, toast)}>Export to Tally</Button></>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Cash in bank" value={lakh(c.bank)} sub={`HDFC ••4821 · runway ${c.runwayCash} days`} onClick={() => setTab('Cash')} />
         <Kpi label="Receivables" value={lakh(totalRecv)} sub={s.sprint.status === 'done' ? `${lakh(sprintTotals(s).promised)} promised by Fri · ${lakh(c.overdue)} overdue` : `${lakh(c.overdue)} overdue`} tone="amber" onClick={() => setTab('Receivables')} />
         <Kpi label="Payables this week" value={lakh(c.payablesWeek)} sub="1 MSME 45-day deadline" tone="red" onClick={() => setTab('Payables')} />
@@ -61,7 +61,7 @@ export function FinanceHome() {
             <div className="mt-3"><Button size="sm" icon={<MessageCircle size={13} />} disabled={!!s.approvals['apr-rem1048']} onClick={() => reminder1048(ctx)}>{s.approvals['apr-rem1048'] ? 'Reminder sent (simulated)' : 'Review reminder for INV-1048'}</Button></div>
           </Card>
           <Card title="Receivables by age" className="col-span-2">
-            <div className="grid grid-cols-4 gap-3">{buckets.map(([l, f]) => { const v = s.invoices.filter((i) => outstanding(i) > 0 && f(overdueDays(i))).reduce((a, i) => a + outstanding(i), 0); return <div key={l} className="rounded-lg border border-slate-200 p-3"><div className="text-2xs uppercase text-slate-500">{l}</div><div className="mt-1 text-lg font-semibold tabular">{lakh(v)}</div></div>; })}</div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{buckets.map(([l, f]) => { const v = s.invoices.filter((i) => outstanding(i) > 0 && f(overdueDays(i))).reduce((a, i) => a + outstanding(i), 0); return <div key={l} className="rounded-lg border border-slate-200 p-3"><div className="text-2xs uppercase text-slate-500">{l}</div><div className="mt-1 text-lg font-semibold tabular">{lakh(v)}</div></div>; })}</div>
           </Card>
         </div>
       )}
@@ -90,7 +90,7 @@ export function FinanceHome() {
         </Card>
       )}
       {tab === 'Cash' && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card title="Cash runway" subtitle={`Fixed costs ${lakh(c.monthlyFixed)} / month`}>
             <div className="text-3xl font-semibold tabular">{c.runwayCash} days</div><div className="text-xs text-slate-500">from bank balance · {c.runwayTotal} days incl. unused CC limit</div>
             <div className="mt-3 space-y-1.5 text-[13px]"><div className="flex justify-between"><span className="text-slate-500">HDFC current ••4821</span><span className="tabular">{inr(bank.hdfc)}</span></div><div className="flex justify-between"><span className="text-slate-500">Cash in hand</span><span className="tabular">{inr(bank.cash)}</span></div><div className="flex justify-between"><span className="text-slate-500">CC limit unused</span><span className="tabular">{inr(c.headroom)}</span></div></div>
@@ -108,7 +108,7 @@ export function FinanceHome() {
         <div className="space-y-3">
           <Callout tone="gray" icon={<ShieldCheck size={16} />} title="GSTIN 36AAMCA4821K1Z6 · Telangana · monthly filer">E-invoicing is not required because turnover is under ₹5 Cr. E-way bills are prepared for consignments over ₹50,000. The Compliance agent reminds you; it never files anything.</Callout>
           <Card pad={false}><DataTable rowKey={(r) => r.name} rows={compliance} columns={[{ key: 'n', header: 'Return / payment', render: (r) => <span className="font-medium">{r.name}</span> }, { key: 'd', header: 'Due', render: (r) => fmtDate(r.due) }, { key: 's', header: 'Status', render: (r) => <Badge tone={r.tone as 'blue'}>{r.status}</Badge> }, { key: 'a', header: '', align: 'right', render: (r) => (/ITC-04/.test(r.name) ? <Link to="/job-work?tab=ITC-04" className="text-xs text-brand-700 hover:underline">Open</Link> : /3B/.test(r.name) ? <Button size="sm" variant="ghost" onClick={() => toast('Mismatch: 3 bills from CastHub Rajkot not yet in GSTR-2B (demo)')}>See mismatch</Button> : null) }]} /></Card>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Kpi label="Output GST (Oct)" value={lakh(446400)} sub="CGST + SGST ₹3.9L · IGST ₹0.56L" />
             <Kpi label="Input credit (Oct)" value={lakh(318000)} sub="₹85,000 not yet in 2B" tone="amber" />
             <Kpi label="Estimated GST payable" value={lakh(128400)} sub="in cash, due 20 Nov" />
@@ -142,11 +142,11 @@ export function InvoiceDetail() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Finance', to: '/finance?tab=Receivables' }, { label: i.id }]} title={`${i.id} · ${c.name}`} subtitle={`Tax invoice · ${fmtDate(i.issue)} · for ${i.order}`} badge={<Status>{i.status}</Status>}
         actions={<>{out > 0 && <Button icon={<MessageCircle size={14} />} data-testid="invoice-reminder" onClick={remind}>Send reminder</Button>}{out > 0 && <Button variant="primary" icon={<IndianRupee size={14} />} data-testid="record-payment" onClick={() => { setAmt(String(out)); setPay(true); }}>Record payment</Button>}</>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Invoice total" value={inr(i.total)} /><Kpi label="Received" value={inr(i.paid)} tone="green" />
         <Kpi label="Outstanding" value={inr(out)} tone={out ? 'amber' : 'green'} /><Kpi label="Overdue" value={out && overdueDays(i) ? `${overdueDays(i)} days` : '—'} tone="red" sub={`Terms: ${c.creditDays} days`} />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card title="GST breakup" className="col-span-2">
           <Fields cols={3}><Field label="Taxable value">{inr(taxable(i))}</Field>{i.interstate ? <Field label="IGST 18%">{inr(g.igst)}</Field> : <><Field label="CGST 9%">{inr(g.cgst)}</Field><Field label="SGST 9%">{inr(g.sgst)}</Field></>}<Field label="Customer GSTIN">{c.gstin}</Field><Field label="Place of supply">{i.interstate ? 'Karnataka (29) – inter-state' : 'Telangana (36)'}</Field><Field label="E-way bill">{i.ewb || 'Not required / not recorded'}</Field></Fields>
           {i.pdc && <div className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">Post-dated cheque {i.pdc.cheque} · {i.pdc.bank} · dated {fmtDate(i.pdc.date)} · {inr(i.pdc.amount)}. Deposit on the date; the Collections agent will remind you.</div>}

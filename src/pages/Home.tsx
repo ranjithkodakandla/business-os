@@ -478,7 +478,7 @@ export default function Home() {
         <button onClick={() => { update((d) => { d.chat = []; }); setParams({}); }} data-testid="chat-new" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 transition hover:border-brand-300 hover:text-brand-700"><SquarePen size={15} />New chat</button>
       </div>
       <div className="flex-1 pb-6">{s.chat.length || chat.thinking ? <Thread thinking={chat.thinking} stage={chat.stage} /> : <EmptyNote>Start by asking anything – a delivery date, a GST sum, or what you need to source.</EmptyNote>}</div>
-      <div className="sticky bottom-[66px] z-20 -mx-1 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)] to-transparent px-1 pb-2 pt-6 lg:bottom-0 lg:pb-4">
+      <div className="sticky bottom-[calc(66px+env(safe-area-inset-bottom))] z-20 -mx-1 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)] to-transparent px-1 pb-2 pt-6 lg:bottom-0 lg:pb-4">
         <Composer chat={chat} inputRef={inputRef} placeholder="Message Workspace AI…" />
         <div className="mt-2 text-center text-[11.5px] text-slate-400">Nothing is sent to a supplier or customer without your OK.</div>
       </div>

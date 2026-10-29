@@ -187,3 +187,21 @@ tbody tr:hover { background-color: rgb(99 102 241 / .035); }
 button.border.bg-white, a.border.bg-white { box-shadow: inset 0 1px 0 #fff, 0 2px 6px -3px rgb(15 23 42 / .12); }
 input:not([type=checkbox]):not([type=radio]), select, textarea { border-radius: 10px; }
 @media (prefers-reduced-motion: reduce) { .home-ask [data-testid=composer-mic], .menu-in { animation: none; } }
+
+/* ── Mobile / tablet responsiveness ── */
+@keyframes drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+.drawer-in { animation: drawer-in .22s cubic-bezier(.2,.8,.2,1); }
+html, body { max-width: 100%; overflow-x: hidden; }
+#main-scroll { overflow-x: hidden; }
+.ask-hero { overflow-x: clip; }
+img, svg, video, canvas { max-width: 100%; }
+.recharts-responsive-container, .recharts-wrapper { max-width: 100%; }
+@media (max-width: 1023px) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { min-height: 44px; font-size: 16px; }
+  [role=dialog] button, [data-testid=topbar] button, .tap { min-height: 44px; min-width: 44px; }
+  input[type=range] { min-height: 44px; }
+  table { font-size: 12.5px; }
+  .grid > *, .flex-wrap > * { min-width: 0; max-width: 100%; }
+}
+@media (max-width: 639px) { .grid-cols-1 > .col-span-2, .grid-cols-1 > .col-span-3 { grid-column: span 1 / span 1; } }
+@media (max-width: 767px) { .grid-cols-2 > .col-span-3 { grid-column: span 2 / span 2; } }

@@ -42,7 +42,7 @@ export default function Collections() {
       {st === 'running' && <OutreachLive flow="sprint" />}
       {st === 'done' && (<>
         <Card>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
             <Kpi label="Target" value={lakh(t.target)} sub={`by ${fmtShort(FRIDAY)}`} />
             <Kpi label="Received" value={lakh(t.received)} sub="INV-1044 · bank feed (simulated)" tone="green" />
             <Kpi label="Promised by Fri" value={lakh(t.promised)} sub="4 customers" tone="blue" />

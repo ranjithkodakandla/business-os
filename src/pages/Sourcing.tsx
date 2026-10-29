@@ -38,7 +38,7 @@ export default function Sourcing() {
         actions={<><Button variant="success" onClick={() => nav('/sourcing/live')}>Live agent (real)</Button><Button icon={<Users size={14} />} onClick={() => nav('/suppliers')}>Supplier contacts</Button>
           <Button variant="primary" data-testid="create-po-draft" icon={<FileCheck2 size={14} />} disabled={st !== 'done' || s.sourcing.poDraft} onClick={() => createPoDraft(ctx)}>{poLabel}</Button></>} />
       <Card title="Stock check" subtitle="Bill of materials × 150, against live stock">
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
           {rows.map((r) => (
             <div key={r.sku} data-stock={r.sku} className={cx('rounded-lg border p-2.5', r.short ? 'border-rose-200 bg-rose-50/50' : 'border-emerald-200 bg-emerald-50/40')}>
               <div className="text-2xs font-medium uppercase text-slate-500">{r.sku}</div>
@@ -59,7 +59,7 @@ export default function Sourcing() {
           <Segmented value={item} onChange={(v) => { setItem(v); setSel(null); }} options={ITEMS.map((i) => ({ value: i.sku, label: i.label }))} />
           <div className="text-2xs text-slate-500">Score = landed price 35% · in stores by {fmtShort(REQ.inStoresBy)} 30% · terms 15% · on-time & quality 20%</div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {opts.map((o, i) => {
             const c = contactOf(s, o.contactId); const chosen = pickFor(s, o.sku).id === o.id;
             return (

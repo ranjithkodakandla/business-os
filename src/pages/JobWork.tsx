@@ -39,7 +39,7 @@ export default function JobWork() {
     <div className="space-y-4">
       <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Job Work' }]} title="Job Work & outsourcing" subtitle="Material sent to job workers, what's pending return, job work you do for customers, and ITC-04"
         actions={<Button variant="primary" icon={<Plus size={14} />} data-testid="new-challan" onClick={() => setNc(true)}>New job-work challan</Button>} />
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Material at job workers" value={lakh(value)} sub={`${open.length} open challans`} tone="amber" />
         <Kpi label="Pending returns" value={open.reduce((a, c) => a + pending(c), 0).toLocaleString('en-IN')} sub="pieces across 4 job workers" />
         <Kpi label="Overdue" value={String(open.filter((c) => c.expected < todayISO).length)} sub="DC-JW-0709 · 3 days late" tone="red" />
@@ -47,7 +47,7 @@ export default function JobWork() {
       </div>
       <Tabs tabs={['Overview', 'Material out', 'Inward job work', 'Capacity', 'ITC-04']} value={tab} onChange={setTab} counts={{ 'Material out': open.length }} />
       {tab === 'Overview' && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {jobWorkers.map((w) => {
             const cs = open.filter((c) => c.workerId === w.id);
             return (
@@ -91,7 +91,7 @@ export default function JobWork() {
         </Card>
       )}
       {tab === 'Capacity' && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card title="In-house vs outsourced, by process" subtitle="Share of this month's work (%)" className="col-span-2">
             <div className="h-72"><ResponsiveContainer><BarChart data={capacity} layout="vertical" margin={{ left: 30 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eef2f7" /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="process" tick={{ fontSize: 11 }} width={100} /><Tooltip /><Legend wrapperStyle={{ fontSize: 12 }} /><Bar dataKey="inhouse" name="In-house" stackId="a" fill="#3b6fe0" isAnimationActive={false} /><Bar dataKey="outsourced" name="Outsourced" stackId="a" fill="#a78bfa" isAnimationActive={false} /></BarChart></ResponsiveContainer></div>
           </Card>

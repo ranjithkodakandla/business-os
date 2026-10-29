@@ -38,7 +38,7 @@ const STATE: Record<FeedItem['state'], { label: string; tone: 'blue' | 'amber' |
 export function FeedRow({ f }: { f: FeedItem }) {
   const st = STATE[f.state];
   const body = (
-    <div className="flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50">
+    <div className="flex flex-wrap items-center gap-3 px-4 sm:px-5 py-3 transition hover:bg-slate-50">
       <AgentIcon kind={f.agent.icon} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px] text-slate-800">{f.text}</div>
@@ -55,8 +55,8 @@ const KIND_TONE: Record<Approval['kind'], 'blue' | 'amber' | 'green' | 'violet' 
 export function ApprovalRow({ a, compact }: { a: Approval; compact?: boolean }) {
   const ctx = useStore();
   return (
-    <div data-approval={a.id} className={cx('flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50/70', compact && 'flex-wrap sm:flex-nowrap')}>
-      <div className={cx('min-w-0 flex-1', compact && 'basis-full sm:basis-auto')}>
+    <div data-approval={a.id} className={cx('flex flex-wrap items-center gap-3 px-4 sm:px-5 py-3 transition hover:bg-slate-50/70', compact && 'flex-wrap sm:flex-nowrap')}>
+      <div className={cx('min-w-0 flex-1 basis-full sm:basis-auto')}>
         <div className="flex items-center gap-2">
           <Link to={a.to} className="truncate text-[13px] font-medium text-slate-900 hover:text-brand-700">{a.title}</Link>
           {a.urgent && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />}
