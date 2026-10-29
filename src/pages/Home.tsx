@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { type LucideIcon, TrendingUp, Wallet, ClipboardList, Users, CheckCircle2, AlertTriangle, Lightbulb, Compass, ChevronRight, Bot, Inbox, Sparkles, Handshake, ShoppingCart, Boxes, Factory, Truck, IndianRupee, BarChart3, Plug, ArrowUpRight, ArrowLeft, SquarePen, X, Mail, MessageCircle, PhoneCall, Cpu, LayoutGrid, PackageSearch, ShieldCheck, Contact, Calculator, CalendarDays, MessageSquareText, Clock } from 'lucide-react';
 import { useStore } from '../lib/store';
+import { scopeOf } from '../lib/modAgent';
+import { isLow } from '../lib/domain';
 import { MessagesSquare, Coins, FileCheck2, CalendarClock } from 'lucide-react';
-import { can } from '../lib/rbac';
+import { can, ROLE_USER, roleOf } from '../lib/rbac';
 import { payTotals } from '../lib/p0actions';
 import { cash, kpis, available } from '../lib/domain';
 import { lakh } from '../lib/format';
@@ -200,6 +202,7 @@ const RUN_STATUS: Record<string, { label: string; c: string; cls: string }> = {
 type RunRow = { id: string; text: string; status: string; createdAt: string };
 const ago = (iso: string) => { const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }); };
 
+const Spark2 = ({ d, c }: { d: number[]; c: string }) => { const mn = Math.min(...d), mx = Math.max(...d) || 1, w = 64, h = 24; const pts = d.map((v, i) => `${(i / (d.length - 1)) * w},${h - 2 - ((v - mn) / (mx - mn || 1)) * (h - 4)}`).join(' '); return <svg width={w} height={h} className="shrink-0" aria-hidden><polyline points={pts} fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>; };
 /* ───────── Page ───────── */
 export default function Home() {
   const ctx = useStore();
@@ -436,14 +439,29 @@ export default function Home() {
 
   const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(new Date()));
   const today = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date());
-  const [hello, name] = greeting(s.lang as Lang).split(', ');
+  const [hello] = greeting(s.lang as Lang).split(', '); const name = ROLE_USER[roleOf(s)].name.split(' ')[0];
   const chips: { t: string; icon: LucideIcon }[] = [
-    { t: 'Need a 10-ton truck from Hyderabad to Pune on Friday', icon: Truck },
-    { t: 'Can we deliver SO-1051 by Friday?', icon: ClipboardList },
-    { t: '18% GST on ₹45,000', icon: Calculator },
-    { t: 'Which customers owe us the most?', icon: Wallet },
-    { t: 'Get me ₹5 lakh in by Friday', icon: IndianRupee },
+    { t: 'Who owes us money?', icon: Wallet }, { t: 'Run October payroll', icon: Coins }, { t: 'What is low in stock?', icon: Boxes },
+    { t: 'What ships today?', icon: Truck }, { t: 'Show open complaints', icon: MessagesSquare }, { t: '18% GST on ₹45,000', icon: Calculator },
+  ].filter((x) => !scopeOf(x.t) || can(s, scopeOf(x.t)!));
+  const lowN = s.skus.filter(isLow).length; const urgentN = ap.filter((a) => a.urgent).length;
+  const TILES = [
+    { k: 'cash', m: 'finance', label: 'Cash', value: lakh(c.bank), change: '₹1.2L this week', up: true, good: true, spark: [5, 6, 5.5, 6.4, 6.2, 7, 7.4], to: '/finance' },
+    { k: 'overdue', m: 'finance', label: 'Overdue', value: lakh(k.overdueAmt), change: '₹2L this week', up: true, good: false, spark: [3, 3.4, 3.2, 4, 4.4, 4.8, 5.2], to: '/finance?tab=Receivables' },
+    { k: 'approvals', m: 'approvals', label: 'Approvals', value: String(ap.length), change: `${urgentN} urgent`, up: true, good: urgentN === 0, spark: [2, 3, 2, 4, 3, 5, ap.length], to: '/approvals' },
+    { k: 'gst', m: 'gst', label: 'GST due', value: '20 Nov', change: `${irnP.length} IRN pending`, up: false, good: irnP.length === 0, spark: [1, 2, 2, 3, 2, 3, 2], to: '/gst' },
+    { k: 'attendance', m: 'attendance', label: 'Attendance', value: `${k.present}/${k.employees}`, change: '2 vs yesterday', up: false, good: false, spark: [43, 44, 42, 44, 45, 44, k.present], to: '/attendance' },
+    { k: 'lowstock', m: 'inventory', label: 'Low stock', value: `${lowN} items`, change: '1 since Monday', up: true, good: false, spark: [1, 1, 2, 2, 2, 3, lowN], to: '/inventory' },
+    { k: 'oee', m: 'operations', label: 'OEE · Unit 1', value: '78%', change: '3 pts this week', up: true, good: true, spark: [70, 72, 71, 74, 75, 77, 78], to: '/operations' },
   ];
+  const tiles = TILES.filter((t) => can(s, t.m));
+  const breach = s.p0.tickets.filter((x) => x.status !== 'Resolved' && x.slaHrs - x.ageHrs < 0);
+  const todo = [
+    ...(can(s, 'finance') ? [{ id: 'call1048', dot: 'bg-rose-500', text: 'Overdue call: Sri Lakshmi Projects · INV-1048', sub: '₹2.1 lakh · 12 days overdue', cta: 'Draft reminder', act: () => send('remind Sri Lakshmi Projects about INV-1048') }] : []),
+    ...(can(s, 'gst') ? [{ id: 'gst', dot: 'bg-amber-500', text: `GSTR-1 due 11 Nov · ${irnP.length} IRN pending`, sub: 'E-invoice register', cta: 'Open GST', act: () => nav('/gst') }] : []),
+    ...(can(s, 'inbox') ? breach.slice(0, 2).map((t) => ({ id: t.id, dot: 'bg-rose-500', text: `${t.id} breaching SLA · ${t.customer}`, sub: t.subject, cta: 'Open ticket', act: () => nav('/inbox') })) : []),
+  ];
+
   const actionPills = [
     ap.length ? { k: 'approvals', t: `${ap.length} approvals`, c: 'bg-brand-500' } : null,
     k.atRisk ? { k: 'orders', t: `${k.atRisk} orders at risk`, c: 'bg-amber-500' } : null,
@@ -470,21 +488,51 @@ export default function Home() {
   /* ───── Home: chat-first hero + business at a glance ───── */
   return (
     <div className="pb-6">
-      <section className="ask-hero relative isolate mx-auto max-w-[780px] pb-2 pt-6 text-center md:pt-12" data-testid="home-hero">
+      <section data-testid="stat-tiles" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+        {tiles.map((t) => (
+          <button key={t.k} data-tile={t.k} onClick={() => nav(t.to)} className="tile-gloss group rounded-2xl p-3.5 text-left">
+            <div className="flex items-center justify-between text-[11.5px] font-medium text-slate-500">{t.label}<ChevronRight size={13} className="opacity-0 transition group-hover:opacity-100" /></div>
+            <div className="mt-1 flex items-end justify-between gap-2"><span className="whitespace-nowrap text-[19px] font-semibold tracking-tight text-slate-900 tabular-nums">{t.value}</span><Spark2 d={t.spark} c={t.good ? '#10b981' : '#f43f5e'} /></div>
+            <div data-trend={t.good ? 'good' : 'bad'} className={cx('mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium', t.good ? 'text-emerald-600' : 'text-rose-600')}>{t.up ? '▲' : '▼'} {t.change}</div>
+          </button>))}
+      </section>
+      <section className="ask-hero relative isolate mx-auto max-w-[820px] pb-2 pt-8 text-center md:pt-10" data-testid="home-hero">
         <div className="hero-orbs" aria-hidden><span /><span /><span /></div>
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[12px] font-medium text-slate-500 shadow-sm backdrop-blur"><CalendarDays size={13} className="text-brand-600" />{today}<span className="text-slate-300">·</span><Clock size={12} />{hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening'} briefing</div>
-        <h1 className="mt-4 text-[30px] font-semibold leading-tight tracking-tight text-slate-900 md:text-[42px]">{hello}{name && <>, <span className="text-grad">{name}</span></>}</h1>
-        <p className="mx-auto mt-2 max-w-[560px] text-[15px] text-slate-500 md:text-[16px]">{ap.length ? <>{Math.min(3, ap.length)} things need you today. Ask me anything, or tell me what to source.</> : 'Nothing needs you right now. Ask me anything, or tell me what to source.'}</p>
-        <div className="mt-6 text-left">
-          <Composer chat={sendCurrent} big inputRef={inputRef} footer={<span className="inline-flex items-center gap-1.5"><Sparkles size={12} className="text-brand-500" />Knows your orders, stock, suppliers and cash</span>} />
+        <h1 className="text-[30px] font-semibold leading-tight tracking-tight text-slate-900 md:text-[40px]">{hello}{name && <>, <span className="text-grad">{name}</span></>}</h1>
+        <p className="mx-auto mt-1.5 max-w-[560px] text-[15px] text-slate-500">Ask anything about Aarohan Industries – type or speak. <span className="text-slate-400">{today}</span></p>
+        <div className="home-ask mt-5 text-left">
+          <Composer chat={sendCurrent} big inputRef={inputRef} placeholder="Which customers owe more than ₹5L for over 45 days?" footer={<span className="inline-flex items-center gap-1.5"><Sparkles size={12} className="text-brand-500" />Knows your orders, stock, people, GST and cash</span>} />
         </div>
-        <div className="no-scrollbar -mx-3 mt-4 flex gap-2 overflow-x-auto px-3 pb-1 [mask-image:linear-gradient(90deg,transparent,#000_12px,#000_calc(100%-24px),transparent)] md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0 md:[mask-image:none]" data-testid="home-chips">
-          {chips.map((x) => <button key={x.t} data-chip={x.t} onClick={() => send(x.t)} className="group inline-flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[13px] text-slate-600 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-brand-300 hover:text-brand-700"><x.icon size={14} className="shrink-0 text-slate-400 transition group-hover:text-brand-600" /><span className="truncate">{x.t}</span></button>)}
+        <div className="no-scrollbar -mx-3 mt-4 flex gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0" data-testid="home-chips">
+          {chips.map((x) => <button key={x.t} data-chip={x.t} onClick={() => send(x.t)} className="chip-gloss group inline-flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] text-slate-600 transition hover:-translate-y-0.5 hover:text-brand-700"><x.icon size={14} className="shrink-0 text-slate-400 transition group-hover:text-brand-600" /><span className="truncate">{x.t}</span></button>)}
         </div>
         {s.chat.length > 0 && <button onClick={() => setParams({ chat: '1' })} data-testid="chat-resume" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-700 hover:underline"><MessageSquareText size={14} />Continue your conversation ({s.chat.filter((m) => m.role === 'user').length} message{s.chat.filter((m) => m.role === 'user').length === 1 ? '' : 's'})<ChevronRight size={14} /></button>}
       </section>
+      <section className="mx-auto mt-8 grid max-w-[1240px] gap-4 lg:grid-cols-[1.05fr_1fr]">
+        <div className="tile-gloss rounded-3xl p-4" data-testid="needs-today">
+          <div className="mb-2 flex items-center justify-between"><h2 className="text-[15px] font-semibold text-slate-900">Needs you today</h2><span className="rounded-full bg-rose-50 px-2 py-0.5 text-2xs font-semibold text-rose-600">{todo.length + ap.slice(0, 3).length}</span></div>
+          <div className="space-y-1.5">
+            {can(s, 'approvals') && ap.slice(0, 3).map((a) => <ApprovalRow key={a.id} a={a} compact />)}
+            {todo.map((t) => (
+              <div key={t.id} data-todo={t.id} className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2.5">
+                <span className={cx('h-2 w-2 shrink-0 rounded-full', t.dot)} />
+                <div className="min-w-0 flex-1"><div className="truncate text-[13px] font-medium text-slate-800">{t.text}</div><div className="truncate text-2xs text-slate-500">{t.sub}</div></div>
+                <button onClick={t.act} className="btn-primary h-8 shrink-0 rounded-full px-3 text-[12px] font-medium">{t.cta}</button>
+              </div>))}
+          </div>
+        </div>
+        <div className="agent-panel rounded-3xl p-4" data-testid="agent-activity">
+          <div className="mb-2 flex items-center justify-between"><h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900"><span className="live-dot text-emerald-500" />Agents at work</h2><Link to="/agents" className="text-[12px] font-medium text-brand-700 hover:underline">All activity →</Link></div>
+          {can(s, 'suppliers') && (
+            <Link to={latest[0] ? `/sourcing/live/${latest[0].id}` : '/sourcing/live'} className="mb-2 block rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-50 to-indigo-50/70 p-3" data-testid="sourcing-strip">
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-900"><PackageSearch size={15} className="text-violet-600" />Sourcing agent<span className="text-2xs font-normal text-slate-500">{latest[0] ? `${latest[0].id} · ${latest[0].text.slice(0, 40)}` : 'SRC-0031 · Kaveri order parts'}</span></div>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-2xs font-medium">{['Stock checked', '6 suppliers contacted', `${s.sourcing.status === 'done' ? 6 : 3} quotes in`, 'Calling Balaji Steels…'].map((x, i) => <span key={x} className={cx('rounded-full px-2 py-0.5', i < 3 ? 'bg-emerald-100 text-emerald-700' : 'animate-pulse bg-white text-violet-700 ring-1 ring-violet-200')}>{i < 3 ? '✓ ' : '● '}{x}</span>)}</div>
+            </Link>)}
+          <div className="divide-y divide-slate-100/80 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/70">{feed.slice(0, 5).map((f: FeedItem) => <FeedRow key={f.key} f={f} />)}</div>
+        </div>
+      </section>
 
-      <section className="mt-10 md:mt-14" data-testid="home-glance">
+      <section className="mx-auto mt-10 max-w-[1240px]" data-testid="home-glance">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
           <div><h2 className="text-[17px] font-semibold tracking-tight text-slate-900">Your business at a glance</h2><p className="text-[13px] text-slate-500">Tap a card for the details and the next step.</p></div>
           {actionPills.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid="action-items" aria-label="Your action items for today">{actionPills.map((p) => <button key={p.k} onClick={() => setParam('card', p.k)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-medium text-slate-700 transition hover:border-brand-300"><span className={cx('h-1.5 w-1.5 rounded-full', p.c)} />{p.t}</button>)}</div>}

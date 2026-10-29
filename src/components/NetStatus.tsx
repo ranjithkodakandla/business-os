@@ -6,7 +6,7 @@ export default function NetStatus() {
   const [n, setN] = useState<Net>(netState.get()); const [code, setCode] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   useEffect(() => netState.sub(setN), []);
   if (n === 'reconnecting') return (
-    <div className="fixed left-1/2 top-3 z-[60] -translate-x-1/2 rounded-full border border-amber-200 bg-amber-50/95 px-3 py-1 text-[12px] font-medium text-amber-800 shadow-sm" data-testid="net-reconnecting" role="status">
+    <div className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-amber-200 bg-amber-50/95 px-3 py-1 text-[12px] font-medium text-amber-800 shadow-sm" data-testid="net-reconnecting" role="status">
       <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-amber-500 align-middle" />Reconnecting…
     </div>
   );

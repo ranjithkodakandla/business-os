@@ -11,10 +11,11 @@ def send(pg, text, wait=20000):
 def card(a): c = a.locator('[data-testid=mod-card]'); return (c.get_attribute('data-kind'), c.get_attribute('data-module')) if c.count() else (None, None)
 def role(pg, r):
     pg.click('[data-testid=profile-menu]'); pg.click(f'[data-role={r}]'); pg.wait_for_timeout(500)
-def expand(pg):
-    while pg.locator('[data-nav-group][data-open=false] [data-group-toggle]').count(): pg.locator('[data-nav-group][data-open=false] [data-group-toggle]').first.click()
-    pg.wait_for_timeout(150)
-def nav(pg, k): expand(pg); return pg.locator(f'[data-testid=sidebar] [data-nav={k}]').count()
+def nav(pg, k):
+    n = 0
+    for g in pg.locator('[data-menu]').all():
+        g.click(); pg.wait_for_timeout(120); n += pg.locator(f'[data-testid=mega-menu] [data-nav={k}]').count(); pg.keyboard.press('Escape')
+    return n
 def home(pg): pg.goto(P + '/#/'); pg.wait_for_selector('[data-testid=composer]')
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_context(viewport={'width': 1400, 'height': 1000}).new_page()
@@ -47,8 +48,8 @@ with sync_playwright() as p:
     pg.goto(P + '/#/audit'); pg.wait_for_timeout(500); ok('audit page lists AI writes on behalf', 'Business OS agent on behalf of Riya Reddy' in pg.inner_text('main'))
     pg.goto(P + '/#/settings?tab=Users'); pg.wait_for_timeout(400); ok('Kiran in users', 'Kiran' in pg.inner_text('main'))
     # ---- Sales role
-    home(pg); role(pg, 'Sales'); ok('role badge Sales', pg.inner_text('[data-testid=current-role]') == 'Sales')
-    ok('Sales nav hides payroll', nav(pg, 'payroll') == 0 and nav(pg, 'sales') == 1 and pg.locator('[data-nav-group=People]').count() == 0)
+    home(pg); role(pg, 'Sales'); ok('Sales tiles filtered (no payroll-ish tiles)', pg.locator('[data-tile=attendance]').count() == 0); ok('role badge Sales', pg.inner_text('[data-testid=current-role]') == 'Sales')
+    ok('Sales nav hides payroll', nav(pg, 'payroll') == 0 and nav(pg, 'sales') == 1 and pg.locator('[data-menu=People]').count() == 0)
     a = send(pg, 'total PF this month'); ok('Sales asking payroll is refused (card)', card(a)[0] == 'denied' and 'ask an admin' in a.inner_text(), a.inner_text())
     a = send(pg, 'whats our salary bill'); ok('Sales salary refused', card(a)[0] == 'denied', a.inner_text())
     a = send(pg, 'show open complaints'); ok('Sales sees complaints', card(a) == ('view', 'inbox'), a.inner_text())
@@ -64,15 +65,18 @@ with sync_playwright() as p:
     home(pg); role(pg, 'Sales'); ok('matrix grant shows payroll for Sales', nav(pg, 'payroll') == 1)
     role(pg, 'Owner')
     # ---- i18n
-    pg.click('[data-lang=te]'); pg.wait_for_timeout(300); expand(pg); ok("Telugu nav", "జీతాలు" in pg.inner_text('[data-testid=sidebar]'))
-    pg.click('[data-lang=hi]'); pg.wait_for_timeout(300); ok('Hindi nav', 'वेतन' in pg.inner_text('[data-testid=sidebar]')); pg.screenshot(path=f'{out}/4-hindi.png'); pg.click('[data-lang=en]')
-    # ---- grouped nav: 7 sections, only active open, rail flyout
-    home(pg); pg.evaluate("sessionStorage.removeItem('bw-nav-open')"); pg.reload(); pg.wait_for_selector('[data-testid=composer]')
-    ok('7 nav sections for Owner', pg.locator('[data-nav-group]').count() == 7)
-    ok('only active section open', pg.locator('[data-nav-group][data-open=true]').count() == 1 and pg.locator('[data-nav-group=Home][data-open=true]').count() == 1)
-    pg.screenshot(path=f'{out}/5-nav.png')
-    pg.click('[data-testid=rail-toggle]'); pg.wait_for_timeout(300); pg.click('[data-rail-group=People]'); pg.wait_for_timeout(200)
-    ok('rail flyout lists section items', pg.locator('[data-testid=rail-menu] [data-nav=payroll]').count() == 1)
-    pg.screenshot(path=f'{out}/6-rail.png'); pg.click('[data-testid=rail-menu] [data-nav=payroll]'); pg.wait_for_timeout(300); pg.click('[data-testid=rail-toggle]')
+    pg.click('[data-lang=te]'); pg.wait_for_timeout(300); ok("Telugu nav", 'ఉద్యోగులు' in pg.inner_text('[data-testid=topnav]'))
+    pg.click('[data-lang=hi]'); pg.wait_for_timeout(300); ok('Hindi nav', 'कर्मचारी' in pg.inner_text('[data-testid=topnav]')); pg.screenshot(path=f'{out}/4-hindi.png'); pg.click('[data-lang=en]')
+    # ---- top menu: 7 groups, mega-menu with context panel, keyboard + outside click
+    home(pg)
+    ok('7 top menu groups for Owner', pg.locator('[data-menu]').count() == 7)
+    pg.click('[data-menu=Buy]'); pg.wait_for_timeout(200)
+    ok('mega-menu shows modules + low-stock panel', pg.locator('[data-testid=mega-menu] [data-nav=inventory]').count() == 1 and 'Low stock' in pg.inner_text('[data-testid=menu-context]'))
+    pg.mouse.click(700, 600); pg.wait_for_timeout(200); ok('outside click closes', pg.locator('[data-testid=mega-menu]').count() == 0)
+    pg.focus('[data-menu=People]'); pg.keyboard.press('ArrowDown'); pg.wait_for_timeout(200); pg.keyboard.press('Enter'); pg.wait_for_timeout(500)
+    ok('keyboard opens menu + navigates', pg.locator('[data-testid=mega-menu]').count() == 0 and ('/people' in pg.url or '/attendance' in pg.url), pg.url)
+    home(pg); ok('stat tiles with trend', pg.locator('[data-tile]').count() == 7 and pg.locator('[data-trend=bad]').count() > 0)
+    pg.click('[data-tile=overdue]'); pg.wait_for_timeout(400); ok('tile opens filtered view', 'Receivables' in pg.url, pg.url)
+    home(pg); ok('needs-today + agent panel', pg.locator('[data-testid=needs-today]').count() == 1 and pg.locator('[data-testid=agent-activity]').count() == 1)
     b.close()
 print(f"{sum(c for _, c in res)}/{len(res)} passed"); sys.exit(0 if all(c for _, c in res) else 1)

@@ -23,8 +23,9 @@ with sync_playwright() as p:
     for tb in tabs.get(r,[]):
       pg.locator(f'[data-tab="{tb}"]').first.dispatch_event('click'); pg.wait_for_timeout(300); ok(f'  tab {tb}',len(pg.locator('main').inner_text() if pg.locator('main').count() else pg.locator('body').inner_text())>200)
     pg.screenshot(path=f'{out}{r.replace("/","-")}.png',full_page=True)
-  while pg.locator('[data-nav-group][data-open=false] [data-group-toggle]').count(): pg.locator('[data-nav-group][data-open=false] [data-group-toggle]').first.click()
-  nav=pg.locator('body').inner_text(); ok('nav lists new modules',all(x in nav for x in ['BOM & Production','Quality control','Bank & TDS','Documents']))
+  nav=''
+  for g in pg.locator('[data-menu]').all(): g.click(); pg.wait_for_timeout(120); nav+=pg.locator('[data-testid=mega-menu]').inner_text(); pg.keyboard.press('Escape')
+  ok('nav lists new modules',all(x in nav for x in ['BOM & Production','Quality control','Bank & TDS','Documents']))
   pg.goto(P+'/#/'); pg.wait_for_timeout(1200)
   for i,(q,want) in enumerate(chat):
     n=pg.locator('[data-testid=data-chart],[data-testid=suggestion],[data-testid=data-items]').count()
