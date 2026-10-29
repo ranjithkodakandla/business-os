@@ -1,3 +1,4 @@
+import { setP1AuditSink, resetP1 } from './p1Data';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as D from './data';
 import { CONTACTS, SupplierContact, Channel, finishSourcing } from './sourcing';
@@ -104,7 +105,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setToasts((t) => [...t, { id, text, tone }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3600);
   }, []);
+  useEffect(() => { setP1AuditSink((a) => update(() => {}, undefined, { module: a.module, action: a.action, record: a.record, agent: a.agent })); return () => setP1AuditSink(null); }, [update]);
   const reset = useCallback(() => {
+    resetP1();
     localStorage.removeItem(KEY);
     setS(initial());
     toast('Demo data restored to the original sample', 'blue');

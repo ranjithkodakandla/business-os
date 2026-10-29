@@ -23,6 +23,7 @@ import Suppliers from '../pages/Suppliers';
 import Sourcing from '../pages/Sourcing';
 import LiveSourcing from '../pages/LiveSourcing';
 import Collections from '../pages/Collections';
+import { Production, Quality, BankTds, Expenses, DispatchPage, Notifications, Documents } from '../pages/P1Modules';
 import { SettingsPage, PayrollPage, InboxPage, GstPage, AttendancePage, AuditPage } from '../pages/p0';
 
 /** [path, module key (for RBAC), element]. Add new module pages here. */
@@ -40,6 +41,8 @@ export const ROUTES: [string, string, React.ReactNode][] = [
   ['/collections', 'collections', <Collections />],
   ['/settings', 'settings', <SettingsPage />], ['/payroll', 'payroll', <PayrollPage />], ['/inbox', 'inbox', <InboxPage />], ['/gst', 'gst', <GstPage />],
   ['/attendance', 'attendance', <AttendancePage />], ['/audit', 'audit', <AuditPage />],
+  ['/production', 'bom', <Production />], ['/quality', 'qc', <Quality />], ['/bank-tds', 'bank', <BankTds />], ['/expenses', 'expenses', <Expenses />],
+  ['/dispatch', 'dispatch', <DispatchPage />], ['/notifications', 'notifications', <Notifications />], ['/documents', 'documents', <Documents />],
 ];
 
 export function Restricted({ k }: { k: string }) {

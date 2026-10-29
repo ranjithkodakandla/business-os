@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { Lang } from '../lib/i18n';
-import { MODULES, GROUPS as NAV_GROUPS, GROUP_LABEL, type Group } from '../lib/nav';
+import { MODULES, GROUPS as NAV_GROUPS, GROUP_LABEL, GROUP_ICON, type Group } from '../lib/nav';
 import { can, ROLES, ROLE_USER, roleOf, type Role } from '../lib/rbac';
 const NAV_LABELS: Record<string, Record<Lang, string>> = Object.fromEntries(MODULES.map((m) => [m.key, m.label]));
 import { approvals, customerById, supplierById } from '../lib/domain';
@@ -18,7 +18,7 @@ import { GuidePanel } from './Guide';
 const NAV_SUB: Record<string, [string, string][]> = {
   suppliers: [['Live sourcing', '/sourcing/live']],
   procurement: [['Purchase orders', '/procurement?tab=Purchase%20orders']],
-  operations: [['Work orders', '/operations?tab=Work%20orders'], ['Dispatch plan', '/operations?tab=Dispatch%20plan']],
+  operations: [['Work orders', '/operations?tab=Work%20orders'], ['Dispatch (packing, LR, POD)', '/dispatch']],
   people: [['Attendance', '/people?tab=Attendance']],
   finance: [['Receivables', '/finance?tab=Receivables'], ['Collections', '/collections']],
   jobwork: [['Material out', '/job-work?tab=Material%20out']],
@@ -134,8 +134,13 @@ function Sidebar({ collapsed, mobile, onToggle, onClose, onFlyout, flyOpen, pill
   const tipOff = () => setTip(null);
   const c = collapsed;
   const groups = useGroups();
-  const [shut, setShut] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('bw-nav-groups') || '{}'); } catch { return {}; } });
-  const flip = (g: string) => setShut((x) => { const n = { ...x, [g]: !x[g] }; try { localStorage.setItem('bw-nav-groups', JSON.stringify(n)); } catch { /* ignore */ } return n; });
+  const [openG, setOpenG] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('bw-nav-open') || '{}'); } catch { return {}; } });
+  const flip = (g: string, v: boolean) => setOpenG((x) => { const n = { ...x, [g]: v }; try { sessionStorage.setItem('bw-nav-open', JSON.stringify(n)); } catch { /* ignore */ } return n; });
+  const isOn = (k: string) => { const m = ALL.find((x) => x.key === k)!; return m.to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(m.to); };
+  const { s: st } = useStore();
+  const badgeOf = (k: string) => k === 'approvals' ? nApprovals : k === 'inbox' ? st.p0.tickets.filter((x) => x.status !== 'Resolved').length : 0;
+  const [railG, setRailG] = useState<{ g: Group; y: number } | null>(null);
+  useEffect(() => { setRailG(null); }, [loc.pathname, c]);
   const item = (n: NavEntry) => {
     const label = NAV_LABELS[n.key][lang];
     return (
@@ -149,7 +154,7 @@ function Sidebar({ collapsed, mobile, onToggle, onClose, onFlyout, flyOpen, pill
             {c && n.key === 'approvals' && nApprovals > 0 && <span data-testid="rail-badge" className="absolute -right-2.5 -top-2 h-4 min-w-4 rounded-full bg-grad px-1 text-center text-[9.5px] font-semibold leading-4 text-white ring-2 ring-[#0b1022]">{nApprovals}</span>}
           </span>
           <span className={cx('flex-1 truncate transition-opacity duration-150', c ? 'opacity-0' : 'opacity-100')}>{label}</span>
-          {!c && n.key === 'approvals' && nApprovals > 0 && <span className="rounded-full bg-grad px-1.5 text-2xs font-semibold leading-[18px] text-white">{nApprovals}</span>}
+          {!c && badgeOf(n.key) > 0 && <span className="rounded-full bg-grad px-1.5 text-2xs font-semibold leading-[18px] text-white">{badgeOf(n.key)}</span>}
         </>}
       </NavLink>
     );
@@ -171,16 +176,41 @@ function Sidebar({ collapsed, mobile, onToggle, onClose, onFlyout, flyOpen, pill
         </button>
       )}
       <nav id="side-nav" className={cx('no-scrollbar flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden py-2 transition-all duration-200', c ? 'px-2.5' : 'px-2.5')}>
-        {groups.map(([g, ks]) => (
-          <div key={g} data-nav-group={g}>
-            {g !== 'Overview' && (c ? <div className="mx-3 my-2 border-t border-white/[.06]" /> :
-              <button onClick={() => flip(g)} aria-expanded={!shut[g]} className="flex w-full items-center justify-between px-3 pb-1 pt-4 text-[10.5px] font-semibold uppercase tracking-[.12em] text-[#5d6890] hover:text-[#9aa4c4]">
-                {GROUP_LABEL[g][lang]}<ChevronDown size={12} className={cx('transition-transform', shut[g] && '-rotate-90')} />
-              </button>)}
-            {(c || !shut[g] || ks.some((k) => loc.pathname.startsWith(ALL.find((m) => m.key === k)!.to) && k !== 'home')) && ks.map((k) => item(ALL.find((m) => m.key === k)!))}
-          </div>
-        ))}
+        {groups.map(([g, ks]) => {
+          const GI = GROUP_ICON[g]; const active = ks.some((k) => isOn(k)); const isOpen = openG[g] ?? active; const bsum = ks.reduce((x, k) => x + (badgeOf(k) || 0), 0);
+          if (c) return (
+            <div key={g} data-nav-group={g} className="relative">
+              <button data-rail-group={g} aria-label={GROUP_LABEL[g][lang]} aria-haspopup="menu" aria-expanded={railG?.g === g}
+                onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setRailG(railG?.g === g ? null : { g, y: r.top }); }}
+                className={cx('relative mx-auto my-0.5 grid h-10 w-10 place-items-center rounded-xl transition', active ? 'bg-white/[.08] text-[#a5b4fc]' : 'text-[#9aa4c4] hover:bg-white/[.05] hover:text-white')}>
+                <GI size={18} strokeWidth={1.9} />
+                {bsum > 0 && <span data-testid={g === 'Home' ? 'rail-badge' : undefined} className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-grad px-1 text-center text-[9.5px] font-semibold leading-4 text-white ring-2 ring-[#0b1022]">{bsum}</span>}
+              </button>
+            </div>);
+          return (
+            <div key={g} data-nav-group={g} data-open={isOpen ? 'true' : 'false'} className="pt-0.5">
+              <button onClick={() => flip(g, !isOpen)} aria-expanded={isOpen} data-group-toggle={g}
+                className={cx('flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-[12.5px] font-semibold transition', active ? 'text-white' : 'text-[#9aa4c4] hover:bg-white/[.04] hover:text-white')}>
+                <GI size={15} strokeWidth={1.9} className={active ? 'text-[#a5b4fc]' : 'text-[#5d6890]'} />
+                <span className="flex-1 truncate text-left">{GROUP_LABEL[g][lang]}</span>
+                {!isOpen && bsum > 0 && <span className="rounded-full bg-grad px-1.5 text-2xs font-semibold leading-[18px] text-white">{bsum}</span>}
+                <span className="text-[10.5px] font-medium tabular-nums text-[#5d6890]">{ks.length}</span>
+                <ChevronDown size={13} className={cx('text-[#5d6890] transition-transform', !isOpen && '-rotate-90')} />
+              </button>
+              {isOpen && <div className="ml-[18px] space-y-0.5 border-l border-white/[.06] pb-1 pl-2">{ks.map((k) => item(ALL.find((m) => m.key === k)!))}</div>}
+            </div>);
+        })}
       </nav>
+      {c && railG && <>
+        <div className="fixed inset-0 z-40" onClick={() => setRailG(null)} />
+        <div role="menu" data-testid="rail-menu" className="fixed left-[76px] z-50 w-56 rounded-xl border border-white/[.08] bg-[#11172e] p-1.5 shadow-2xl" style={{ top: Math.min(railG.y - 6, window.innerHeight - 60 - 40 * (groups.find(([g]) => g === railG.g)?.[1].length || 1)) }}>
+          <div className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[.12em] text-[#5d6890]">{GROUP_LABEL[railG.g][lang]}</div>
+          {(groups.find(([g]) => g === railG.g)?.[1] || []).map((k) => { const m = ALL.find((x) => x.key === k)!; const bd = badgeOf(k); return (
+            <NavLink key={k} to={m.to} end={m.to === '/'} data-nav={k} role="menuitem" onClick={() => setRailG(null)} className={({ isActive }) => cx('flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px]', isActive ? 'bg-white/[.08] text-white' : 'text-[#c7cde4] hover:bg-white/[.06] hover:text-white')}>
+              <m.icon size={15} strokeWidth={1.9} /><span className="flex-1 truncate">{NAV_LABELS[k][lang]}</span>{bd > 0 && <span className="rounded-full bg-grad px-1.5 text-2xs font-semibold leading-[18px] text-white">{bd}</span>}
+            </NavLink>); })}
+        </div>
+      </>}
       {c ? (
         <div className="flex flex-col items-center gap-2 pb-4 pt-2">
           <button ref={pillRef} onClick={onFlyout} data-testid="all-modules" aria-haspopup="dialog" aria-expanded={flyOpen} onMouseEnter={tipOn('All modules')} onMouseLeave={tipOff} onFocus={tipOn('All modules')} onBlur={tipOff}

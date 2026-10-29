@@ -71,7 +71,7 @@ export default function Operations() {
         </div>
       )}
       {tab === 'Dispatch plan' && (
-        <Card pad={false} title="Dispatch plan · next 3 days" subtitle="Prepared by the Dispatch planner agent from packed orders and transporter slots"
+        <Card pad={false} title="Dispatch plan · next 3 days" subtitle={<>Next-3-day loads from the Dispatch planner. Packing lists, LR and POD live in <Link to="/dispatch" className="text-brand-700 hover:underline">Dispatch →</Link></>}
           actions={<Button size="sm" icon={<Bot size={13} />} disabled={!!ewTask} onClick={() => startTask(HANDOFFS['handoff-eway'](ctx))}>{ewTask ? (ewTask.status === 'running' ? 'Preparing e-way bill data…' : 'E-way bill data ready') : 'Prepare e-way bill data'}</Button>}>
           <DataTable rowKey={(d) => d.order} rows={[...dispatchPlan, ...(s.pr208Approved ? [{ date: '2026-10-30', order: 'SO-1051', customer: 'Sri Lakshmi Projects', to: 'Gachibowli', qty: 'Lot 1 · 35 assemblies · 5 pallets', vehicle: 'TS 08 UC 7712', transporter: 'Sri Sai Transport', eway: 'To generate', lr: 'Pending', slot: '16:00', interstate: false }] : [])].sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot))} columns={[
             { key: 'd', header: 'Date', render: (d) => fmtShort(d.date) }, { key: 's', header: 'Slot', render: (d) => d.slot },
