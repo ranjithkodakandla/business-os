@@ -1,0 +1,6 @@
+---
+description: Business OS team standards (mandatory)
+alwaysApply: true
+---
+Read and follow @AGENTS.md and every file in docs/standards/ it links. It is the single source of truth.
+Your Jira label: `agent:cursor`. Never edit AGENTS.md or docs/standards/** without approval.
