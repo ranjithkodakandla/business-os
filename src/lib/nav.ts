@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Home, Inbox, Handshake, ClipboardList, ShoppingCart, Boxes, Factory, Users, IndianRupee, BarChart3, Truck, Bot, Plug, Sparkles, Contact,
   Wallet, MessagesSquare, FileCheck2, CalendarClock, History, Settings, Coins,
-  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen,
+  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen, CreditCard,
 } from 'lucide-react';
 import type { Lang } from './i18n';
 export type Group = 'Home' | 'Sell' | 'Make' | 'Buy' | 'People' | 'Money' | 'Admin';
@@ -20,7 +20,7 @@ export const GROUP_LABEL: Record<Group, Record<Lang, string>> = {
   Money: { en: 'Money', hi: 'पैसा', te: 'డబ్బు' }, Admin: { en: 'Admin', hi: 'एडमिन', te: 'అడ్మిన్' },
 };
 export const GROUP_ICON: Record<Group, LucideIcon> = { Home: Home, Sell: Handshake, Make: Factory, Buy: Boxes, People: Users, Money: IndianRupee, Admin: Settings };
-const ORDER = ['home', 'approvals', 'notifications', 'inbox', 'sales', 'orders', 'dispatch', 'gst', 'bom', 'jobwork', 'qc', 'operations', 'procurement', 'suppliers', 'inventory', 'people', 'attendance', 'payroll', 'expenses', 'finance', 'collections', 'bank', 'reports', 'settings', 'audit', 'documents', 'agents', 'integrations', 'setup'];
+const ORDER = ['home', 'approvals', 'notifications', 'inbox', 'sales', 'orders', 'dispatch', 'gst', 'bom', 'jobwork', 'qc', 'operations', 'procurement', 'suppliers', 'inventory', 'people', 'attendance', 'payroll', 'expenses', 'finance', 'collections', 'bank', 'reports', 'settings', 'billing', 'workspace', 'audit', 'documents', 'agents', 'integrations', 'setup'];
 export type NavItem = { key: string; to: string; icon: LucideIcon; group: Group; label: Record<Lang, string>; desc: string; sub?: [string, string][] };
 const L = (en: string, hi: string, te: string) => ({ en, hi, te });
 export const MODULES: NavItem[] = [
@@ -50,6 +50,8 @@ export const MODULES: NavItem[] = [
   { key: 'notifications', to: '/notifications', icon: Bell, group: 'Home', label: L('Notifications', 'सूचनाएँ', 'నోటిఫికేషన్లు'), desc: 'Alerts, compliance calendar, daily brief' },
   { key: 'documents', to: '/documents', icon: FolderOpen, group: 'Admin', label: L('Documents', 'दस्तावेज़', 'పత్రాలు'), desc: 'Certificates, drawings, contracts, PODs' },
   { key: 'settings', to: '/settings', icon: Settings, group: 'Admin', label: L('Settings & access', 'सेटिंग्स', 'సెట్టింగ్‌లు'), desc: 'Company, users, roles, approvals, series' },
+  { key: 'billing', to: '/billing', icon: CreditCard, group: 'Admin', label: L('Billing & subscription', 'बिलिंग और सदस्यता', 'బిల్లింగ్ & సబ్‌స్క్రిప్షన్'), desc: 'Your plan, GST invoices, pay dues, TDS & Form 16A' },
+  { key: 'workspace', to: '/workspace-admin', icon: ShieldCheck, group: 'Admin', label: L('Workspace admin', 'वर्कस्पेस एडमिन', 'వర్క్‌స్పేస్ అడ్మిన్'), desc: 'SSO/MFA, invites, API keys, import/export, limits, help' },
   { key: 'audit', to: '/audit', icon: History, group: 'Admin', label: L('Audit log', 'ऑडिट लॉग', 'ఆడిట్ లాగ్'), desc: 'Every change, by people and the AI' },
   { key: 'agents', to: '/agents', icon: Bot, group: 'Admin', label: L('Agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'What each AI agent may do' },
   { key: 'integrations', to: '/integrations', icon: Plug, group: 'Admin', label: L('Connected apps', 'जुड़े ऐप', 'అనుసంధాన యాప్‌లు'), desc: 'Tally, WhatsApp, Gmail, GST' },

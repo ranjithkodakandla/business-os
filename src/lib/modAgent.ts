@@ -8,6 +8,7 @@ import { moduleByKey } from './nav';
 import { payTotals, findEmp, P0A } from './p0actions';
 import { inr, lakh } from './format';
 import { company } from './data';
+import { getBilling, certFor, certRemaining } from '../billing/data';
 
 export type Field = { k: string; label: string; value: string; required?: boolean; options?: string[] };
 export type ModCard = {
@@ -23,6 +24,7 @@ const unitIn = (t: string) => /unit\s*2|cherlapally/i.test(t) ? company.units[2]
 
 /** Which module a message is about (for scope). Order matters: specific first. */
 const SCOPE_RX: [string, RegExp][] = [
+  ['billing', /\b(billing|subscription|my plan|our plan|business ?os (invoice|bill|plan|dues?)|saas invoice|form ?16 ?a|section ?197|sec ?197|lower (tds )?deduction|tds certificate|26as)\b/i],
   ['payroll', /\b(payroll|pay ?run|salar(y|ies)|payslips?|pay slips?|\bpf\b|provident|\besi\b|professional tax|\btds\b on salar|advance|loan to|full (and|&) final|bank (payout|file))\b/i],
   ['inbox', /\b(complaints?|tickets?|inbox|csat|sla|customer (messages|queries))\b/i],
   ['gst', /\b(irn|e-?invoic\w*|e-?way|ewb|gstr|gst return|3b|gstr-?1)\b/i],
@@ -45,6 +47,14 @@ export const fixTypos = (t: string) => t.replace(/\b(advnce|advanc|adavnce|advac
 export function modIntent(t0: string, s: DemoState): ModCard | null {
   const t = fixTypos(t0);
   const T = t.toLowerCase();
+  // ---- Billing & subscription (company admin / Billing role only; scope checked by caller)
+  if (/\b(billing|subscription|my plan|our plan|business ?os (invoice|bill|plan|dues?)|saas invoice|form ?16 ?a|section ?197|sec ?197|lower (tds )?deduction|tds certificate|26as)\b/i.test(t)) {
+    const b = getBilling(); const tid = s.tenant || 't-aarohan'; const inv = b.invoices.filter((i) => i.tenant === tid); const due = inv.filter((i) => i.status !== 'Paid'); const c = certFor(b, tid); const f = b.f16a.filter((x) => x.tenant === tid);
+    return view('billing', due.length ? `${due.length} Business OS invoice${due.length > 1 ? 's' : ''} due – ${inr(due.reduce((a, i) => a + i.total, 0))}` : 'Your Business OS subscription is fully paid', [
+      { label: 'Outstanding', value: inr(due.reduce((a, i) => a + i.total, 0)), tone: due.length ? 'red' : 'green' }, { label: 'TDS deducted FY', value: inr(b.payments.filter((p) => p.tenant === tid).reduce((a, p) => a + p.tds, 0)) },
+      { label: 'Form 16A pending', value: String(f.filter((x) => x.status === 'Pending').length), tone: f.some((x) => x.status === 'Pending') ? 'amber' : 'green' }, { label: 'Sec 197 left', value: c ? inr(certRemaining(b, c)) : '—', tone: 'blue' }],
+      { cols: ['Quarter', 'TDS', '16A status'], rows: f.map((x) => [x.quarter, inr(x.tds), x.status]) });
+  }
   // ---- Payroll
   if (/\b(run|process|prepare|generate|do)\b.*\b(payroll|salar(y|ies)|pay ?run)\b/i.test(t)) {
     const month = (t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*/i)?.[0] || 'October'); const mm = month[0].toUpperCase() + month.slice(1).toLowerCase();

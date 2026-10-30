@@ -10,7 +10,7 @@ export type PTicket = { id: string; tenant: string; subject: string; priority: '
 export type PlanDef = { name: Plan; price: number; users: string; agents: string; storage: string; modules: string[]; blurb: string };
 export type PlatState = { tenants: Tenant[]; flags: Record<string, Record<string, boolean>>; invoices: PInvoice[]; tickets: PTicket[]; rollout: Record<string, Rollout>; log: { at: string; tenant: string; text: string }[] };
 
-const STARTER = ['home', 'approvals', 'notifications', 'sales', 'orders', 'gst', 'inventory', 'finance', 'reports', 'settings', 'audit', 'documents', 'integrations', 'setup'];
+const STARTER = ['home', 'approvals', 'notifications', 'sales', 'orders', 'gst', 'inventory', 'finance', 'reports', 'settings', 'audit', 'documents', 'integrations', 'setup', 'billing', 'workspace'];
 const GROWTH = [...STARTER, 'inbox', 'dispatch', 'procurement', 'suppliers', 'people', 'attendance', 'payroll', 'expenses', 'operations', 'jobwork', 'collections', 'agents'];
 export const PLANS: PlanDef[] = [
   { name: 'Starter', price: 4999, users: '5 users', agents: '1 AI agent', storage: '10 GB', modules: STARTER, blurb: 'Sell, bill and stock for a single unit' },

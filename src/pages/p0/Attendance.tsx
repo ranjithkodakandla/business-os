@@ -5,6 +5,7 @@ import { useStore } from '../../lib/store';
 import { inr } from '../../lib/format';
 import { P0A } from '../../lib/p0actions';
 import { t } from '../../lib/i18n';
+import AttendanceDevices from '../AttendanceDevices';
 import { ModHead, Grid, useCan, useLang } from './kit';
 
 const DAYS = Array.from({ length: 7 }, (_, i) => 23 + i);
@@ -26,7 +27,7 @@ export default function Attendance() {
         <Kpi label="OT this week" value={`${s.p0.ot.reduce((a, o) => a + o.hrs, 0)} h`} icon={<Timer size={15} />} />
         <Kpi label="Contract labour" value={`${s.p0.contractors.reduce((a, c) => a + c.present, 0)}/${s.p0.contractors.reduce((a, c) => a + c.heads, 0)}`} icon={<HardHat size={15} />} />
       </Grid>
-      <Tabs tabs={['Muster roll', 'Leave', 'Leave balance', 'OT register', 'Contractors', 'Shifts']} value={tab} onChange={setTab} counts={{ Leave: s.p0.leaves.filter((l) => l.status === 'Pending').length }} />
+      <Tabs tabs={['Muster roll', 'Leave', 'Leave balance', 'OT register', 'Contractors', 'Shifts', 'Devices & check-in']} value={tab} onChange={setTab} counts={{ Leave: s.p0.leaves.filter((l) => l.status === 'Pending').length }} />
       {tab === 'Muster roll' && <div className="grid gap-4 lg:grid-cols-[1fr_280px]"><Card pad={false} title="Muster roll · 23–29 Oct"><div className="overflow-x-auto"><table className="w-full text-[12px]"><thead><tr className="text-2xs text-slate-500"><th className="px-3 py-2 text-left">Employee</th>{DAYS.map((d) => <th key={d} className="px-1">{d}</th>)}</tr></thead><tbody>
         {E.map((e) => <tr key={e.id} className="border-t border-slate-100"><td className="px-3 py-1.5 font-medium text-slate-800">{e.name}<span className="block text-2xs font-normal text-slate-400">{e.team.split(' – ')[0]} · {e.shift.split(' ')[0]}</span></td>{DAYS.map((d) => { const c = mark(e.name, d, code(e.status)); return <td key={d} className="px-0.5 text-center"><span className={`inline-block w-7 rounded py-0.5 text-[10.5px] font-semibold ${tone(c)}`}>{c}</span></td>; })}</tr>)}
       </tbody></table></div></Card>
@@ -40,6 +41,7 @@ export default function Attendance() {
       {tab === 'OT register' && <Card pad={false} title="Overtime register" subtitle="Paid at 2× hourly rate via payroll"><DataTable rows={s.p0.ot} rowKey={(r) => r.emp + r.date} columns={[{ key: 'n', header: 'Employee', render: (r) => r.name }, { key: 'd', header: 'Date', render: (r) => r.date }, { key: 'h', header: 'Hours', align: 'right', render: (r) => r.hrs }, { key: 'a', header: 'Approved', render: (r) => <Badge tone={r.approved ? 'green' : 'amber'}>{r.approved ? 'Approved' : 'Pending'}</Badge> }]} /></Card>}
       {tab === 'Contractors' && <Card pad={false} title="Contract labour attendance"><DataTable rows={s.p0.contractors} rowKey={(r) => r.agency} columns={[{ key: 'a', header: 'Agency', render: (r) => <b>{r.agency}</b> }, { key: 'h', header: 'Deployed', align: 'right', render: (r) => r.heads }, { key: 'p', header: 'Present today', align: 'right', render: (r) => r.present }, { key: 'r', header: 'Day rate', align: 'right', render: (r) => inr(r.rate) }, { key: 'b', header: 'Month bill (est.)', align: 'right', render: (r) => inr(r.present * r.rate * 26) }]} /></Card>}
       {tab === 'Shifts' && <Card pad={false} title="Shift roster"><DataTable rows={[...new Set(E.map((e) => e.shift))]} rowKey={(r) => r} columns={[{ key: 's', header: 'Shift', render: (r) => <b>{r}</b> }, { key: 'n', header: 'Headcount', align: 'right', render: (r) => E.filter((e) => e.shift === r).length }, { key: 'p', header: 'Present', align: 'right', render: (r) => E.filter((e) => e.shift === r && /Present|Late/.test(e.status)).length }]} /></Card>}
+      {tab === 'Devices & check-in' && <AttendanceDevices />}
     </div>
   );
 }

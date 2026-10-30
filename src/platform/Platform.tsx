@@ -1,16 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { NavLink, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from 'recharts';
-import { Building2, ToggleRight, IndianRupee, Layers, LifeBuoy, Server, Sparkles, ShieldAlert, LogOut, Send, Menu, X } from 'lucide-react';
+import { Building2, ToggleRight, IndianRupee, Layers, LifeBuoy, Server, Sparkles, Receipt, LineChart as LineIcon, Activity, Siren, Headset, FlaskConical, Database, Lock as LockIcon, ShieldAlert, LogOut, Send, Menu, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../lib/store';
 import { MODULES } from '../lib/nav';
 import { Badge, Button, Card, Kpi, DataTable, SearchBox, Select, Status, Tabs, cx } from '../components/ui';
 import { PLANS, MRR_TREND, FLAG_KEYS, mrrOf, churnRisk, inrP, lakhP, type Tenant } from './data';
 import { STAGES, stageAllows, bucket, INTERNAL, type Stage } from './rollout';
+import TdsReceivables from './Tds';
+import { Catalog, Lifecycle } from './Lifecycle';
+import { Metrics, Telemetry, Observability, AiSupport, DemoAccess, Warehouse, Security } from './Ops';
 import { platIntent, fillPCard, execP, missing, type PCard, type PMsg } from './agent';
 
-const NAV: [string, string, React.ElementType][] = [['/platform', 'Companies', Building2], ['/platform/flags', 'Feature flags', ToggleRight], ['/platform/billing', 'Billing & revenue', IndianRupee], ['/platform/plans', 'Plans', Layers], ['/platform/support', 'Support', LifeBuoy], ['/platform/tenancy', 'Tenancy & infra', Server], ['/platform/ai', 'Ask AI', Sparkles]];
+const NAV: [string, string, React.ElementType][] = [['/platform', 'Companies', Building2], ['/platform/flags', 'Feature flags', ToggleRight], ['/platform/billing', 'Billing & revenue', IndianRupee], ['/platform/catalog', 'Plan catalog', Layers], ['/platform/subscriptions', 'Subscriptions', IndianRupee], ['/platform/tds', 'TDS receivables', Receipt], ['/platform/metrics', 'SaaS metrics', LineIcon], ['/platform/telemetry', 'Telemetry', Activity], ['/platform/observability', 'Observability', Siren], ['/platform/ai-support', 'AI support', Headset], ['/platform/demo', 'Demo access', FlaskConical], ['/platform/warehouse', 'Data warehouse', Database], ['/platform/security', 'Security & privacy', LockIcon], ['/platform/plans', 'Plans', Layers], ['/platform/support', 'Support', LifeBuoy], ['/platform/tenancy', 'Tenancy & infra', Server], ['/platform/ai', 'Ask AI', Sparkles]];
 const label = (k: string) => MODULES.find((m) => m.key === k)?.label.en || k;
 const healthTone = (h: number) => (h >= 75 ? 'green' : h >= 55 ? 'amber' : 'red') as 'green' | 'amber' | 'red';
 
@@ -42,7 +45,7 @@ export default function PlatformApp() {
         <Routes>
           <Route path="/platform" element={<Companies />} /><Route path="/platform/companies/:id" element={<CompanyDetail />} /><Route path="/platform/flags" element={<Flags />} />
           <Route path="/platform/billing" element={<Billing />} /><Route path="/platform/plans" element={<Plans />} /><Route path="/platform/support" element={<Support />} />
-          <Route path="/platform/tenancy" element={<Tenancy />} /><Route path="/platform/ai" element={<PlatAI />} />
+          <Route path="/platform/tenancy" element={<Tenancy />} /><Route path="/platform/catalog" element={<Catalog />} /><Route path="/platform/subscriptions" element={<Lifecycle />} /><Route path="/platform/tds" element={<TdsReceivables />} /><Route path="/platform/metrics" element={<Metrics />} /><Route path="/platform/telemetry" element={<Telemetry />} /><Route path="/platform/observability" element={<Observability />} /><Route path="/platform/ai-support" element={<AiSupport />} /><Route path="/platform/demo" element={<DemoAccess />} /><Route path="/platform/warehouse" element={<Warehouse />} /><Route path="/platform/security" element={<Security />} /><Route path="/platform/ai" element={<PlatAI />} />
         </Routes>
       </main>
     </div>);
