@@ -1,4 +1,4 @@
-/** Platform admin: SaaS metrics, product telemetry, observability, AI support, demo access, data warehouse, security & privacy. All simulated. */
+/** Platform admin: SaaS metrics, product telemetry, AI support, demo access, data warehouse, security & privacy. All simulated. */
 import React, { useState } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid, LineChart, Line } from 'recharts';
 import { Bot, UserRound, Plus, RotateCcw, Trash2, Lock, KeyRound, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -43,20 +43,6 @@ export function Telemetry() {
   </div>);
 }
 
-export function Observability() {
-  const svc = [['api-gateway', 'Healthy', 99.98, 0.04, 182], ['tenant-app (MFE shell)', 'Healthy', 99.99, 0.02, 95], ['ai-agent-svc', 'Degraded', 99.71, 1.8, 2410], ['whatsapp-svc', 'Healthy', 99.95, 0.3, 420], ['gst-einvoice-svc', 'Healthy', 99.9, 0.6, 880], ['payroll-svc', 'Healthy', 99.99, 0.01, 140], ['billing-svc', 'Healthy', 99.97, 0.05, 210], ['postgres (shared)', 'Healthy', 100, 0, 12]] as [string, string, number, number, number][];
-  const err = Array.from({ length: 24 }, (_, i) => ({ h: `${i}:00`, api: +(0.1 + (i % 7) * 0.03).toFixed(2), ai: +(i > 18 ? 1.2 + (i - 18) * 0.15 : 0.3 + (i % 5) * 0.05).toFixed(2) }));
-  const inc = [['INC-042', 'ai-agent-svc p95 latency > 2s (LLM provider slow)', 'SEV2', 'Investigating', '41 min', 'Ranjith'], ['INC-041', 'E-way bill API timeouts (NIC portal)', 'SEV3', 'Monitoring', '3 h', 'Anil'], ['INC-039', 'WhatsApp template rejected – delivery dip', 'SEV3', 'Resolved', '1 h 20 m', 'Meera']];
-  const oncall = [['This week (primary)', 'Ranjith Kumar', 'AI build bots as secondary'], ['Next week', 'Anil (contract L2)', 'Ranjith'], ['Week after', 'Ranjith Kumar', 'Anil']];
-  return (<div data-testid="platform-observability"><H t="Observability & on-call" sub="Service health, errors, incidents and the public status page" right={<Sim />} />
-    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4"><Kpi label="Uptime (30d)" value="99.94%" tone="green" sub="SLO 99.9%" /><Kpi label="Error budget left" value="58%" /><Kpi label="Open incidents" value="2" tone="amber" /><Kpi label="MTTR (30d)" value="47 min" /></div>
-    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]"><Card title="Services" pad={false}><DataTable rows={svc} rowKey={(r) => r[0]} columns={[{ key: 'n', header: 'Service', render: (r) => r[0] }, { key: 's', header: 'Status', render: (r) => <Status>{r[1]}</Status> }, { key: 'u', header: 'Uptime', align: 'right', render: (r) => r[2] + '%' }, { key: 'e', header: 'Errors', align: 'right', render: (r) => <span className={r[3] > 1 ? 'text-rose-600' : ''}>{r[3]}%</span> }, { key: 'l', header: 'p95 ms', align: 'right', render: (r) => r[4] }]} /></Card>
-      <Card title="Error rate % (last 24h)"><Ch><LineChart data={err}><XAxis dataKey="h" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line dataKey="api" stroke="#6366f1" dot={false} /><Line dataKey="ai" stroke="#f43f5e" dot={false} /></LineChart></Ch></Card></div>
-    <div className="mt-4 grid gap-4 lg:grid-cols-2"><Card title="Incidents" pad={false}><DataTable rows={inc} rowKey={(r) => r[0]} columns={[{ key: 'i', header: 'ID', render: (r) => r[0] }, { key: 't', header: 'Title', render: (r) => r[1] }, { key: 's', header: 'Sev', render: (r) => <Badge tone={r[2] === 'SEV2' ? 'red' : 'amber'}>{r[2]}</Badge> }, { key: 'st', header: 'Status', render: (r) => <Status>{r[3]}</Status> }, { key: 'd', header: 'Duration', render: (r) => r[4] }]} /></Card>
-      <div className="space-y-4"><Card title="On-call rotation">{oncall.map((o) => <div key={o[0]} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-2 text-[13px]"><span className="text-slate-500">{o[0]}</span><span className="font-medium">{o[1]}</span><span className="text-2xs text-slate-400">backup: {o[2]}</span></div>)}<div className="mt-2 text-2xs text-slate-500">Pages via phone + WhatsApp (simulated). Escalates after 10 min.</div></Card>
-        <Card title="Public status page · status.businessos.in"><div className="space-y-1 text-[13px]">{[['Web & mobile app', 'Operational'], ['AI assistant', 'Degraded performance'], ['WhatsApp messaging', 'Operational'], ['GST e-invoice / e-way', 'Operational'], ['Payments & billing', 'Operational']].map(([k, v]) => <div key={k} className="flex justify-between"><span>{k}</span><span className={v === 'Operational' ? 'text-emerald-700' : 'text-amber-700'}>● {v}</span></div>)}</div></Card></div></div>
-  </div>);
-}
 
 type T = { id: string; tenant: string; subj: string; diag: string; state: 'AI resolved' | 'AI working' | 'Escalated' | 'Human resolved'; conf: number };
 export function AiSupport() {

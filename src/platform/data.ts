@@ -10,17 +10,17 @@ export type PTicket = { id: string; tenant: string; subject: string; priority: '
 export type PlanDef = { name: Plan; price: number; users: string; agents: string; storage: string; modules: string[]; blurb: string };
 export type PlatState = { tenants: Tenant[]; flags: Record<string, Record<string, boolean>>; invoices: PInvoice[]; tickets: PTicket[]; rollout: Record<string, Rollout>; log: { at: string; tenant: string; text: string }[] };
 
-const STARTER = ['home', 'approvals', 'notifications', 'sales', 'orders', 'gst', 'inventory', 'finance', 'reports', 'settings', 'audit', 'documents', 'integrations', 'setup', 'billing', 'workspace'];
-const GROWTH = [...STARTER, 'inbox', 'dispatch', 'procurement', 'suppliers', 'people', 'attendance', 'payroll', 'expenses', 'operations', 'jobwork', 'collections', 'agents'];
+const STARTER = ['home', 'approvals', 'notifications', 'sales', 'orders', 'gst', 'inventory', 'finance', 'reports', 'settings', 'audit', 'documents', 'integrations', 'setup', 'billing', 'workspace', 'alerts'];
+const GROWTH = [...STARTER, 'inbox', 'dispatch', 'procurement', 'suppliers', 'people', 'attendance', 'payroll', 'expenses', 'operations', 'jobwork', 'collections', 'agents', 'match'];
 export const PLANS: PlanDef[] = [
-  { name: 'Starter', price: 4999, users: '5 users', agents: '1 AI agent', storage: '10 GB', modules: STARTER, blurb: 'Sell, bill and stock for a single unit' },
-  { name: 'Growth', price: 14999, users: '25 users', agents: '4 AI agents', storage: '100 GB', modules: GROWTH, blurb: 'Adds buying, people & payroll, shop floor' },
+  { name: 'Starter', price: 4999, users: 'Up to 10 users', agents: '1 AI agent', storage: '10 GB', modules: STARTER, blurb: 'Sell, bill and stock for a single unit' },
+  { name: 'Growth', price: 14999, users: 'Unlimited users', agents: '4 AI agents', storage: '100 GB', modules: GROWTH, blurb: 'Adds buying, people & payroll, shop floor' },
   { name: 'Pro', price: 39999, users: 'Unlimited users', agents: 'All agents + voice calls', storage: '1 TB · dedicated DB option', modules: MODULES.map((m) => m.key), blurb: 'Everything incl. BOM, QC, bank recon, sourcing agent' },
 ];
 export const FLAG_KEYS = MODULES.filter((m) => m.key !== 'home').map((m) => m.key);
 export const planMods = (p: Plan) => PLANS.find((x) => x.name === p)!.modules;
 const T = (id: string, name: string, city: string, industry: string, plan: Plan, region: Region, status: Status, users: number, health: number, idleDays: number, db: 'Shared' | 'Dedicated', version: string, since: string): Tenant => ({
-  id, name, city, industry, plan, region, status, users, mrr: status === 'Trial' ? 0 : status === 'Suspended' ? 0 : PLANS.find((x) => x.name === plan)!.price + Math.max(0, users - (plan === 'Starter' ? 5 : plan === 'Growth' ? 25 : 999)) * 499,
+  id, name, city, industry, plan, region, status, users, mrr: status === 'Trial' ? 0 : status === 'Suspended' ? 0 : PLANS.find((x) => x.name === plan)!.price,
   health, idleDays, lastActive: idleDays === 0 ? 'Today' : idleDays === 1 ? 'Yesterday' : `${idleDays} days ago`, db, version, since,
   gstin: `36AAB${id.slice(-3).toUpperCase()}${(users * 7) % 9}Z${(health % 9) + 1}`,
   usage: Object.fromEntries(planMods(plan).slice(0, 9).map((k, i) => [k, Math.max(4, Math.round((health / 100) * (90 - i * 8) + ((users * (i + 3)) % 17)))])),
@@ -43,7 +43,7 @@ export const seedPlat = (): PlatState => {
   const flags = Object.fromEntries(tenants.map((t) => [t.id, Object.fromEntries(FLAG_KEYS.map((k) => [k, planMods(t.plan).includes(k)]))]));
   const unpaid: Record<string, 'Failed' | 'Due'> = { 't-shree': 'Failed', 't-sahyadri': 'Failed', 't-vindhya': 'Failed', 't-punjab': 'Due', 't-chola': 'Due' };
   const invoices: PInvoice[] = tenants.filter((t) => t.status !== 'Trial').flatMap((t, i) => ['Aug 2026', 'Sep 2026', 'Oct 2026'].map((m, j) => {
-    const base = PLANS.find((x) => x.name === t.plan)!.price + Math.max(0, t.users - (t.plan === 'Starter' ? 5 : t.plan === 'Growth' ? 25 : 999)) * 499;
+    const base = PLANS.find((x) => x.name === t.plan)!.price;
     const st = j === 2 ? (unpaid[t.id] || 'Paid') : t.id === 't-vindhya' && j === 1 ? 'Failed' : 'Paid';
     return { id: `AOS/26-27/${String(300 + i * 3 + j).padStart(4, '0')}`, tenant: t.id, month: m, amount: base, status: st, attempts: st === 'Failed' ? (t.id === 't-vindhya' ? 4 : 2) : st === 'Due' ? 0 : 1, gst: Math.round(base * 0.18) };
   }));

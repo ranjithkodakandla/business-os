@@ -5,6 +5,7 @@ import { PageHeader, Card, Button, Badge, Kpi, DataTable, Tabs, Modal, Status, C
 import { inr } from '../lib/format';
 import { PLANS } from '../platform/data';
 import { InvoiceModal } from './Invoice';
+import UsageNudge from '../components/UsageNudge';
 import { TIERS, ADDONS, tierRank, prorate, type Tier } from './catalog';
 import { useBilling, updateBilling, computeTds, certFor, certUtilised, certRemaining, tenantsAll, quarterOf, nowStamp, SECTION_LABEL, PROVIDER, type BInvoice, type BPayment, type Section } from './data';
 
@@ -18,7 +19,7 @@ export default function BillingPage() {
   const dues = inv.filter((i) => i.status !== 'Paid'); const dueAmt = dues.reduce((a, i) => a + i.total - i.paid, 0);
   const cert = certFor(st, tid); const f16 = st.f16a.filter((f) => f.tenant === tid);
   const tdsFy = pays.reduce((a, p) => a + p.tds, 0);
-  const usage = [['Users', t.users, plan.name === 'Starter' ? 5 : plan.name === 'Growth' ? 25 : 200], ['AI agent runs (Oct)', Math.round(t.health * 21), plan.name === 'Starter' ? 500 : plan.name === 'Growth' ? 2500 : 10000], ['WhatsApp messages (Oct)', t.users * 61, plan.name === 'Pro' ? 10000 : 3000], ['Storage (GB)', Math.round(t.users * 1.7), plan.name === 'Starter' ? 10 : plan.name === 'Growth' ? 100 : 1000]] as [string, number, number][];
+  const usage = [...(plan.name === 'Starter' ? [['Users', t.users, 10]] : []), ['AI agent runs (Oct)', Math.round(t.health * 21), plan.name === 'Starter' ? 500 : plan.name === 'Growth' ? 2500 : 10000], ['WhatsApp messages (Oct)', t.users * 61, plan.name === 'Pro' ? 10000 : 3000], ['Storage (GB)', Math.round(t.users * 1.7), plan.name === 'Starter' ? 10 : plan.name === 'Growth' ? 100 : 1000]] as [string, number, number][];
   if (t.region === 'ME' || t.status === 'Trial') return <div data-testid="billing-page"><PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Billing & subscription' }]} title="Billing & subscription" subtitle={t.status === 'Trial' ? 'You are on a free trial – no invoices yet. Trial ends 12 Nov.' : 'Billed in AED by our UAE entity – Indian TDS does not apply.'} /><Callout tone="blue" title="Nothing due">Choose a plan before the trial ends to keep your data.</Callout></div>;
   return (<div data-testid="billing-page">
     <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Admin' }, { label: 'Billing & subscription' }]} title="Billing & subscription" subtitle={`Your Business OS plan, GST invoices, payments and TDS – visible only to company admins and the Billing role.`}
@@ -29,10 +30,11 @@ export default function BillingPage() {
       <Kpi label="TDS deducted FY26-27" value={inr(tdsFy)} sub={`${f16.filter((f) => f.status === 'Pending').length} Form 16A pending`} tone={f16.some((f) => f.status === 'Pending') ? 'amber' : 'green'} onClick={() => setTab('TDS & Form 16A')} />
       <Kpi label="Sec 197 rate" value={cert ? `${cert.rate}%` : '—'} sub={cert ? `${inr(certRemaining(st, cert))} of ${inr(cert.threshold)} left` : 'Not applicable to you'} tone={cert && certRemaining(st, cert) < cert.threshold * 0.1 ? 'amber' : undefined} onClick={() => setTab('TDS & Form 16A')} />
     </div>
+    {tab === 'Overview' && <UsageNudge full />}
     <Tabs tabs={['Overview', 'Plan & add-ons', 'Invoices', 'Payments', 'TDS & Form 16A']} value={tab} onChange={setTab} counts={{ Invoices: inv.length, Payments: pays.length }} />
     {tab === 'Overview' && <div className="grid gap-4 lg:grid-cols-2">
       <Card title="Plan & usage" subtitle={plan.blurb}><div className="space-y-3" data-testid="usage">{usage.map(([k, v, max]) => { const pct = Math.min(100, Math.round((v / max) * 100)); return <div key={k}><div className="flex justify-between text-[13px]"><span>{k}</span><span className="tabular text-slate-500">{v.toLocaleString('en-IN')} / {max.toLocaleString('en-IN')}</span></div><div className="mt-1 h-2 rounded bg-slate-100"><div className={cx('h-2 rounded', pct > 85 ? 'bg-amber-500' : 'bg-gradient-to-r from-indigo-500 to-sky-400')} style={{ width: pct + '%' }} /></div></div>; })}</div>
-        <div className="mt-3 text-2xs text-slate-500">Extra users ₹499/user/month. Upgrade or downgrade from the Platform team – changes pro-rate on the next invoice.</div></Card>
+        <div className="mt-3 text-2xs text-slate-500">No per-user pricing – Growth and above include unlimited users. Upgrade or downgrade from the Platform team – changes pro-rate on the next invoice.</div></Card>
       <Card title="Dues" subtitle="Pay with UPI, card or netbanking – deduct TDS at payment if you are liable">{dues.length ? dues.map((d) => <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 text-[13px]"><div><div className="font-medium">{d.id} · {d.month}</div><div className="text-2xs text-slate-500">Due {d.due}</div></div><div className="flex items-center gap-2"><Status>{d.status}</Status><span className="font-semibold tabular">{inr(d.total)}</span><Button size="sm" variant="primary" data-testid={`pay-${d.id}`} onClick={() => setPay(d)}>Pay now</Button></div></div>) : <div className="text-[13px] text-emerald-700">✓ No dues</div>}
         <div className="mt-3 grid grid-cols-2 gap-2 text-2xs text-slate-500"><div>Billed by <b className="text-slate-700">{PROVIDER.name}</b></div><div>GSTIN {PROVIDER.gstin} · SAC {PROVIDER.sac}</div></div></Card>
     </div>}
@@ -100,6 +102,7 @@ function PayModal({ inv, onClose, onDone }: { inv: BInvoice; onClose: () => void
 function PlanTab({ cur }: { cur: Tier }) {
   const { toast } = useStore(); const [req, setReq] = useState<string[]>([]); const [qty, setQty] = useState<Record<string, number>>({});
   return (<div className="space-y-4" data-testid="plan-tab">
+    <div data-testid="unlimited-users" className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[13px] text-emerald-800"><b>Unlimited users on Growth and above.</b><span className="text-emerald-700">Add your whole team – shop floor, stores, sales – at no extra cost. We price by plan and usage, never per seat.</span></div>
     <Card title="Your plan" subtitle="Renews 01 Nov 2026 · Monthly · auto-renew on (UPI autopay) · cancel anytime from here with 30 days' data export">
       <div className="grid gap-3 md:grid-cols-5">{TIERS.map((t) => { const isCur = t.name === cur; const up = tierRank(t.name) > tierRank(cur); return <div key={t.name} className={cx('rounded-xl border p-3 text-[12px]', isCur ? 'border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-100' : 'border-slate-200 bg-white')}>
         <div className="flex items-center justify-between"><b className="text-[13px]">{t.name}</b>{isCur && <Badge tone="blue">Current</Badge>}</div><div className="mt-1 text-lg font-bold">{t.price ? inr(t.price) : 'Custom'}</div><div className="text-slate-500">{t.users} users · {t.aiCredits} AI credits</div>

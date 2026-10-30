@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { NavLink, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from 'recharts';
-import { Building2, ToggleRight, IndianRupee, Layers, LifeBuoy, Server, Sparkles, Receipt, LineChart as LineIcon, Activity, Siren, Headset, FlaskConical, Database, Lock as LockIcon, ShieldAlert, LogOut, Send, Menu, X } from 'lucide-react';
+import { Building2, ToggleRight, IndianRupee, Layers, LifeBuoy, Server, Sparkles, Receipt, LineChart as LineIcon, Activity, Headset, FlaskConical, Database, Lock as LockIcon, ShieldAlert, LogOut, Send, Menu, X, ChevronDown, ExternalLink } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../lib/store';
 import { MODULES } from '../lib/nav';
@@ -10,10 +10,29 @@ import { PLANS, MRR_TREND, FLAG_KEYS, mrrOf, churnRisk, inrP, lakhP, type Tenant
 import { STAGES, stageAllows, bucket, INTERNAL, type Stage } from './rollout';
 import TdsReceivables from './Tds';
 import { Catalog, Lifecycle } from './Lifecycle';
-import { Metrics, Telemetry, Observability, AiSupport, DemoAccess, Warehouse, Security } from './Ops';
+import { Metrics, Telemetry, AiSupport, DemoAccess, Warehouse, Security } from './Ops';
 import { platIntent, fillPCard, execP, missing, type PCard, type PMsg } from './agent';
 
-const NAV: [string, string, React.ElementType][] = [['/platform', 'Companies', Building2], ['/platform/flags', 'Feature flags', ToggleRight], ['/platform/billing', 'Billing & revenue', IndianRupee], ['/platform/catalog', 'Plan catalog', Layers], ['/platform/subscriptions', 'Subscriptions', IndianRupee], ['/platform/tds', 'TDS receivables', Receipt], ['/platform/metrics', 'SaaS metrics', LineIcon], ['/platform/telemetry', 'Telemetry', Activity], ['/platform/observability', 'Observability', Siren], ['/platform/ai-support', 'AI support', Headset], ['/platform/demo', 'Demo access', FlaskConical], ['/platform/warehouse', 'Data warehouse', Database], ['/platform/security', 'Security & privacy', LockIcon], ['/platform/plans', 'Plans', Layers], ['/platform/support', 'Support', LifeBuoy], ['/platform/tenancy', 'Tenancy & infra', Server], ['/platform/ai', 'Ask AI', Sparkles]];
+export const STATUS_URL = 'https://grafana.example.com/d/business-os/system-status'; // placeholder – observability lives in Grafana, not in-app
+type NavItem = [string, string, React.ElementType];
+const GROUPS: [string, NavItem[]][] = [
+  ['Customers', [['/platform', 'Companies', Building2], ['/platform/demo', 'Demo access', FlaskConical], ['/platform/support', 'Support', LifeBuoy], ['/platform/ai-support', 'AI support', Headset]]],
+  ['Revenue', [['/platform/billing', 'Billing & revenue', IndianRupee], ['/platform/metrics', 'SaaS metrics', LineIcon], ['/platform/subscriptions', 'Subscriptions', IndianRupee], ['/platform/catalog', 'Plan catalog', Layers], ['/platform/plans', 'Plans', Layers], ['/platform/tds', 'TDS receivables', Receipt]]],
+  ['Product', [['/platform/flags', 'Feature flags', ToggleRight], ['/platform/telemetry', 'Telemetry', Activity], ['/platform/warehouse', 'Data warehouse', Database], ['/platform/ai', 'Ask AI', Sparkles]]],
+  ['Ops', [['/platform/tenancy', 'Tenancy & infra', Server]]],
+  ['Security', [['/platform/security', 'Security & privacy', LockIcon]]],
+];
+function GroupMenu({ g, items }: { g: string; items: NavItem[] }) {
+  const loc = useLocation(); const [open, setOpen] = useState(false);
+  const active = items.some(([to]) => to === '/platform' ? loc.pathname === '/platform' || loc.pathname.startsWith('/platform/companies') : loc.pathname.startsWith(to));
+  return (<div className="relative" onMouseLeave={() => setOpen(false)}>
+    <button data-pgroup={g} onClick={() => setOpen(!open)} onMouseEnter={() => setOpen(true)} className={cx('flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium', active ? 'tab-active bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-100' : 'text-slate-600 hover:bg-white/70')}>{g}<ChevronDown size={13} /></button>
+    {open && <div className="absolute left-0 top-full z-40 min-w-[220px] pt-1"><div className="rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" data-pmenu={g}>
+      {items.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-pnav={l} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-2 rounded-lg px-3 py-2 text-[13px]', isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50')}><I size={15} />{l}</NavLink>)}
+      {g === 'Ops' && <a href={STATUS_URL} target="_blank" rel="noreferrer" data-testid="system-status-link" className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-slate-700 hover:bg-slate-50"><ExternalLink size={15} />System status (Grafana) ↗</a>}
+    </div></div>}
+  </div>);
+}
 const label = (k: string) => MODULES.find((m) => m.key === k)?.label.en || k;
 const healthTone = (h: number) => (h >= 75 ? 'green' : h >= 55 ? 'amber' : 'red') as 'green' | 'amber' | 'red';
 
@@ -30,7 +49,7 @@ export default function PlatformApp() {
       <header data-testid="platform-topbar" className="topbar sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/60 bg-white/75 px-3 backdrop-blur-xl md:gap-4 md:px-5">
         <button data-testid="plat-menu-btn" aria-label="Open menu" onClick={() => setMenu(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-white lg:hidden"><Menu size={21} /></button>
         <div className="flex min-w-0 items-center gap-2"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-sky-500 text-xs font-bold text-white shadow">B</span><div className="min-w-0 leading-tight"><div className="truncate text-[13px] font-semibold text-slate-800">Business OS</div><div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Platform admin</div></div></div>
-        <nav className="hidden flex-1 gap-1 overflow-x-auto lg:flex">{NAV.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-pnav={l} className={({ isActive }) => cx('flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium', isActive ? 'tab-active bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-100' : 'text-slate-600 hover:bg-white/70')}><I size={15} />{l}</NavLink>)}</nav>
+        <nav className="hidden flex-1 gap-1 lg:flex" data-testid="platform-groups">{GROUPS.map(([g, items]) => <GroupMenu key={g} g={g} items={items} />)}</nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 text-[12px] text-slate-500"><span className="hidden xl:inline">Ranjith Kumar · Platform owner</span>
           <Button size="sm" icon={<LogOut size={14} />} data-testid="exit-platform" className="max-lg:h-10" onClick={exit}><span className="hidden sm:inline">Customer app</span></Button></div>
       </header>
@@ -38,14 +57,14 @@ export default function PlatformApp() {
         <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-sm" onClick={() => setMenu(false)} />
         <aside data-testid="plat-drawer" className="drawer-in absolute inset-y-0 left-0 flex w-[min(320px,86vw)] flex-col bg-white/95 shadow-2xl" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div className="leading-tight"><div className="text-[15px] font-semibold text-slate-900">Platform admin</div><div className="text-[12px] text-slate-500">Ranjith Kumar · Platform owner</div></div><button aria-label="Close menu" onClick={() => setMenu(false)} className="grid h-11 w-11 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
-          <nav className="flex-1 overflow-y-auto p-2">{NAV.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-mpnav={l} onClick={() => setMenu(false)} className={({ isActive }) => cx('flex min-h-[46px] items-center gap-3 rounded-xl px-3 text-[14.5px] font-medium', isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 active:bg-slate-100')}><I size={17} />{l}</NavLink>)}</nav>
+          <nav className="flex-1 overflow-y-auto p-2">{GROUPS.map(([g, items]) => <div key={g} className="mb-2"><div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{g}</div>{items.map(([to, l, I]) => <NavLink key={to} end={to === '/platform'} to={to} data-mpnav={l} onClick={() => setMenu(false)} className={({ isActive }) => cx('flex min-h-[46px] items-center gap-3 rounded-xl px-3 text-[14.5px] font-medium', isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 active:bg-slate-100')}><I size={17} />{l}</NavLink>)}{g === 'Ops' && <a href={STATUS_URL} target="_blank" rel="noreferrer" className="flex min-h-[46px] items-center gap-3 rounded-xl px-3 text-[14.5px] font-medium text-slate-700"><ExternalLink size={17} />System status ↗</a>}</div>)}</nav>
           <div className="border-t border-slate-100 p-3"><Button icon={<LogOut size={15} />} className="h-11 w-full" onClick={() => { setMenu(false); exit(); }}>Back to customer app</Button></div>
         </aside></div>, document.body)}
       <main className="mx-auto max-w-[1500px] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-5">
         <Routes>
           <Route path="/platform" element={<Companies />} /><Route path="/platform/companies/:id" element={<CompanyDetail />} /><Route path="/platform/flags" element={<Flags />} />
           <Route path="/platform/billing" element={<Billing />} /><Route path="/platform/plans" element={<Plans />} /><Route path="/platform/support" element={<Support />} />
-          <Route path="/platform/tenancy" element={<Tenancy />} /><Route path="/platform/catalog" element={<Catalog />} /><Route path="/platform/subscriptions" element={<Lifecycle />} /><Route path="/platform/tds" element={<TdsReceivables />} /><Route path="/platform/metrics" element={<Metrics />} /><Route path="/platform/telemetry" element={<Telemetry />} /><Route path="/platform/observability" element={<Observability />} /><Route path="/platform/ai-support" element={<AiSupport />} /><Route path="/platform/demo" element={<DemoAccess />} /><Route path="/platform/warehouse" element={<Warehouse />} /><Route path="/platform/security" element={<Security />} /><Route path="/platform/ai" element={<PlatAI />} />
+          <Route path="/platform/tenancy" element={<Tenancy />} /><Route path="/platform/catalog" element={<Catalog />} /><Route path="/platform/subscriptions" element={<Lifecycle />} /><Route path="/platform/tds" element={<TdsReceivables />} /><Route path="/platform/metrics" element={<Metrics />} /><Route path="/platform/telemetry" element={<Telemetry />} /><Route path="/platform/ai-support" element={<AiSupport />} /><Route path="/platform/demo" element={<DemoAccess />} /><Route path="/platform/warehouse" element={<Warehouse />} /><Route path="/platform/security" element={<Security />} /><Route path="/platform/ai" element={<PlatAI />} />
         </Routes>
       </main>
     </div>);

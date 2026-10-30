@@ -48,7 +48,7 @@ with sync_playwright() as p:
   pg.get_by_role('button', name='Company grid', exact=True).click()
   pg.click('[data-flag="t-aarohan:payroll"]'); pg.click('[data-flag="t-aarohan:sales"]')
   ck('toggle state flips', pg.get_attribute('[data-flag="t-aarohan:payroll"]', 'data-on') == '0')
-  pg.click('[data-pnav="Companies"]'); pg.click('[data-tenant=t-aarohan]'); pg.click('[data-testid=view-as-company]'); pg.wait_for_selector('[data-testid=topnav]')
+  pg.click('[data-pgroup=Customers]'); pg.click('[data-pnav="Companies"]'); pg.click('[data-tenant=t-aarohan]'); pg.click('[data-testid=view-as-company]'); pg.wait_for_selector('[data-testid=topnav]')
   ck('tenant banner', pg.locator('[data-testid=tenant-banner]').count() == 1)
   pg.click('[data-menu=People]'); pg.wait_for_timeout(200); ck('payroll hidden in customer menu', pg.locator('[data-nav=payroll]').count() == 0 and pg.locator('[data-nav=attendance]').count() == 1)
   pg.keyboard.press('Escape'); pg.click('[data-menu=Sell]'); pg.wait_for_timeout(200); ck('sales hidden', pg.locator('[data-nav=sales]').count() == 0)

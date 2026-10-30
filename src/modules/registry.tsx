@@ -25,6 +25,8 @@ import LiveSourcing from '../pages/LiveSourcing';
 import Collections from '../pages/Collections';
 import BillingPage from '../billing/BillingPage';
 import WorkspaceAdmin from '../pages/WorkspaceAdmin';
+import AlertsPage from '../alerts/AlertsPage';
+import MatchPage from '../alerts/MatchPage';
 import { Production, Quality, BankTds, Expenses, DispatchPage, Notifications, Documents } from '../pages/P1Modules';
 import { SettingsPage, PayrollPage, InboxPage, GstPage, AttendancePage, AuditPage } from '../pages/p0';
 
@@ -40,7 +42,7 @@ export const ROUTES: [string, string, React.ReactNode][] = [
   ['/finance', 'finance', <FinanceHome />], ['/finance/:id', 'finance', <InvoiceDetail />],
   ['/reports', 'reports', <Reports />], ['/agents', 'agents', <Agents />], ['/integrations', 'integrations', <Integrations />], ['/setup', 'setup', <Setup />],
   ['/suppliers', 'suppliers', <Suppliers />], ['/sourcing', 'suppliers', <Sourcing />], ['/sourcing/live', 'suppliers', <LiveSourcing />], ['/sourcing/live/:id', 'suppliers', <LiveSourcing />], ['/sourcing/:id', 'suppliers', <Sourcing />],
-  ['/collections', 'collections', <Collections />], ['/billing', 'billing', <BillingPage />], ['/workspace-admin', 'workspace', <WorkspaceAdmin />],
+  ['/collections', 'collections', <Collections />], ['/billing', 'billing', <BillingPage />], ['/workspace-admin', 'workspace', <WorkspaceAdmin />], ['/alerts', 'alerts', <AlertsPage />], ['/three-way-match', 'match', <MatchPage />],
   ['/settings', 'settings', <SettingsPage />], ['/payroll', 'payroll', <PayrollPage />], ['/inbox', 'inbox', <InboxPage />], ['/gst', 'gst', <GstPage />],
   ['/attendance', 'attendance', <AttendancePage />], ['/audit', 'audit', <AuditPage />],
   ['/production', 'bom', <Production />], ['/quality', 'qc', <Quality />], ['/bank-tds', 'bank', <BankTds />], ['/expenses', 'expenses', <Expenses />],

@@ -53,7 +53,7 @@ export function seedBilling(): BillingState {
   const st: BillingState = { invoices: [], payments: [], f16a: [], certs, rates, defaultSection, log: [] };
   let n = 120;
   ts.forEach((t) => {
-    const base = PLANS.find((x) => x.name === t.plan)!.price + Math.max(0, t.users - (t.plan === 'Starter' ? 5 : t.plan === 'Growth' ? 25 : 999)) * 499;
+    const base = PLANS.find((x) => x.name === t.plan)!.price;
     const g = custGstin(t);
     MONTHS.forEach(([m, ym], j) => {
       if (t.id === 't-tirupati') return;

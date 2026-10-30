@@ -26,7 +26,7 @@ with sync_playwright() as p:
   pg.keyboard.press('Control+k'); ck('Ctrl+K focuses search', pg.evaluate("document.activeElement.dataset.testid") == 'global-search')
   pg.keyboard.type('SO-105'); pg.wait_for_timeout(200); ck('search results', pg.locator('.glass-pop button').count() > 0)
   pg.goto(U + '/#/'); pg.select_option('[data-testid=role-switch]', 'Stores'); pg.wait_for_timeout(400)
-  ck('Stores: People + Money groups hidden', pg.locator('[data-menu=People]').count() == 0 and pg.locator('[data-menu=Money]').count() == 0)
+  ck('Stores: People hidden, Money shows only Three-way match', pg.locator('[data-menu=People]').count() == 0 and pg.locator('[data-menu=Money]').count() == 1)
   pg.screenshot(path=f'{O}/top-menu-stores.png'); pg.select_option('[data-testid=role-switch]', 'Owner')
   ck('no page errors', not errs, errs[:2])
   b.close()

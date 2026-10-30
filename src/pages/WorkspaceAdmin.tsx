@@ -13,7 +13,7 @@ export default function WorkspaceAdmin() {
   const [keys, setKeys] = useState([['Tally sync', 'bos_live_••••8f2a', 'Read: invoices, ledgers', '12 Oct'], ['Website leads', 'bos_live_••••c41d', 'Write: leads', '02 Sep']]);
   const [nps, setNps] = useState<number | null>(null);
   const T = ({ on, set, id }: { on: boolean; set: (v: boolean) => void; id: string }) => <button data-toggle={id} onClick={() => set(!on)} className={cx('relative h-6 w-11 shrink-0 rounded-full', on ? 'bg-emerald-500' : 'bg-slate-300')}><span className={cx('absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition', on ? 'left-[22px]' : 'left-0.5')} /></button>;
-  const lim = [['Users', 45, 200], ['AI credits (Oct)', 6420, 10000], ['WhatsApp messages', 8710, 10000], ['E-invoices', 1210, 99999], ['Storage GB', 77, 1000], ['Companies / GSTIN', 2, 5]] as [string, number, number][];
+  const lim = [['AI credits (Oct)', 6420, 10000], ['WhatsApp messages', 8710, 10000], ['E-invoices', 1210, 99999], ['Storage GB', 77, 1000], ['Companies / GSTIN', 2, 5]] as [string, number, number][];
   return (<div data-testid="workspace-admin">
     <PageHeader crumbs={[{ label: 'Home', to: '/' }, { label: 'Admin' }, { label: 'Workspace admin' }]} title="Workspace admin" subtitle="Security, users, developer access, data, limits and help – in one place" badge={<Badge tone="violet">Simulated</Badge>} />
     <Tabs tabs={TABS} value={tab} onChange={setTab} />

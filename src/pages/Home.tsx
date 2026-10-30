@@ -1,3 +1,4 @@
+import UsageNudge from '../components/UsageNudge';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { type LucideIcon, TrendingUp, Wallet, ClipboardList, Users, CheckCircle2, AlertTriangle, Lightbulb, Compass, ChevronRight, Bot, Inbox, Sparkles, Handshake, ShoppingCart, Boxes, Factory, Truck, IndianRupee, BarChart3, Plug, ArrowUpRight, ArrowLeft, SquarePen, X, Mail, MessageCircle, PhoneCall, Cpu, LayoutGrid, PackageSearch, ShieldCheck, Contact, Calculator, CalendarDays, MessageSquareText, Clock } from 'lucide-react';
@@ -496,6 +497,7 @@ export default function Home() {
             <div data-trend={t.good ? 'good' : 'bad'} className={cx('mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium', t.good ? 'text-emerald-600' : 'text-rose-600')}>{t.up ? '▲' : '▼'} {t.change}</div>
           </button>))}
       </section>
+      <div className="mt-4"><UsageNudge /></div>
       <section className="ask-hero relative isolate mx-auto max-w-[820px] pb-2 pt-8 text-center md:pt-10" data-testid="home-hero">
         <div className="hero-orbs" aria-hidden><span /><span /><span /></div>
         <h1 className="text-[30px] font-semibold leading-tight tracking-tight text-slate-900 md:text-[40px]">{hello}{name && <>, <span className="text-grad">{name}</span></>}</h1>

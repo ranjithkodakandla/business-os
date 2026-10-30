@@ -1,6 +1,7 @@
 import { seedPlat } from '../platform/data';
 import { setP1AuditSink, resetP1 } from './p1Data';
 import { resetBilling } from '../billing/data';
+import { resetAlerts } from '../alerts/data';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as D from './data';
 import { CONTACTS, SupplierContact, Channel, finishSourcing } from './sourcing';
@@ -110,7 +111,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
   useEffect(() => { setP1AuditSink((a) => update(() => {}, undefined, { module: a.module, action: a.action, record: a.record, agent: a.agent })); return () => setP1AuditSink(null); }, [update]);
   const reset = useCallback(() => {
-    resetP1(); resetBilling();
+    resetP1(); resetBilling(); resetAlerts();
     localStorage.removeItem(KEY);
     setS(initial());
     toast('Demo data restored to the original sample', 'blue');

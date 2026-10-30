@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Home, Inbox, Handshake, ClipboardList, ShoppingCart, Boxes, Factory, Users, IndianRupee, BarChart3, Truck, Bot, Plug, Sparkles, Contact,
   Wallet, MessagesSquare, FileCheck2, CalendarClock, History, Settings, Coins,
-  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen, CreditCard,
+  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen, CreditCard, BellRing, GitCompareArrows,
 } from 'lucide-react';
 import type { Lang } from './i18n';
 export type Group = 'Home' | 'Sell' | 'Make' | 'Buy' | 'People' | 'Money' | 'Admin';
@@ -20,7 +20,7 @@ export const GROUP_LABEL: Record<Group, Record<Lang, string>> = {
   Money: { en: 'Money', hi: 'पैसा', te: 'డబ్బు' }, Admin: { en: 'Admin', hi: 'एडमिन', te: 'అడ్మిన్' },
 };
 export const GROUP_ICON: Record<Group, LucideIcon> = { Home: Home, Sell: Handshake, Make: Factory, Buy: Boxes, People: Users, Money: IndianRupee, Admin: Settings };
-const ORDER = ['home', 'approvals', 'notifications', 'inbox', 'sales', 'orders', 'dispatch', 'gst', 'bom', 'jobwork', 'qc', 'operations', 'procurement', 'suppliers', 'inventory', 'people', 'attendance', 'payroll', 'expenses', 'finance', 'collections', 'bank', 'reports', 'settings', 'billing', 'workspace', 'audit', 'documents', 'agents', 'integrations', 'setup'];
+const ORDER = ['home', 'approvals', 'notifications', 'alerts', 'inbox', 'sales', 'orders', 'dispatch', 'gst', 'bom', 'jobwork', 'qc', 'operations', 'procurement', 'suppliers', 'inventory', 'people', 'attendance', 'payroll', 'expenses', 'finance', 'collections', 'bank', 'match', 'reports', 'settings', 'billing', 'workspace', 'audit', 'documents', 'agents', 'integrations', 'setup'];
 export type NavItem = { key: string; to: string; icon: LucideIcon; group: Group; label: Record<Lang, string>; desc: string; sub?: [string, string][] };
 const L = (en: string, hi: string, te: string) => ({ en, hi, te });
 export const MODULES: NavItem[] = [
@@ -47,6 +47,8 @@ export const MODULES: NavItem[] = [
   { key: 'dispatch', to: '/dispatch', icon: PackageCheck, group: 'Sell', label: L('Dispatch', 'डिस्पैच', 'డిస్పాచ్'), desc: 'Dispatch plan, packing, LR, POD' },
   { key: 'bank', to: '/bank-tds', icon: Landmark, group: 'Money', label: L('Bank & TDS', 'बैंक और TDS', 'బ్యాంక్ & TDS'), desc: 'Bank reconciliation, TDS register, 26Q' },
   { key: 'expenses', to: '/expenses', icon: Receipt, group: 'People', label: L('Expenses', 'ख़र्चे', 'ఖర్చులు'), desc: 'Claims with receipts, approvals, payout' },
+  { key: 'alerts', to: '/alerts', icon: BellRing, group: 'Home', label: L('Alerts & preferences', 'अलर्ट और पसंद', 'అలర్ట్‌లు & ప్రాధాన్యతలు'), desc: '28 alert types – channel, frequency and scope per role' },
+  { key: 'match', to: '/three-way-match', icon: GitCompareArrows, group: 'Money', label: L('Three-way match', 'थ्री-वे मैच', 'త్రీ-వే మ్యాచ్'), desc: 'PO vs GRN vs bill, SO vs OC vs invoice – AI explains mismatches' },
   { key: 'notifications', to: '/notifications', icon: Bell, group: 'Home', label: L('Notifications', 'सूचनाएँ', 'నోటిఫికేషన్లు'), desc: 'Alerts, compliance calendar, daily brief' },
   { key: 'documents', to: '/documents', icon: FolderOpen, group: 'Admin', label: L('Documents', 'दस्तावेज़', 'పత్రాలు'), desc: 'Certificates, drawings, contracts, PODs' },
   { key: 'settings', to: '/settings', icon: Settings, group: 'Admin', label: L('Settings & access', 'सेटिंग्स', 'సెట్టింగ్‌లు'), desc: 'Company, users, roles, approvals, series' },
