@@ -4,11 +4,11 @@ import { ArrowLeft, Sparkles, SquarePen, FileCheck2, ShieldAlert, ShoppingCart, 
 import { useStore } from '../lib/store';
 import { useChat, Composer, Thread } from '../components/Conversation';
 import { PageHeader, Card, Button, Badge, Callout, cx } from '../components/ui';
-import { useFx, fx, renewalRows, TENDERS, tenderView, fmtD, daysTo, DOCS, GROUPS, groupState, groupTotal, inr, lakh, NEEDS, SITES, ORDERS, updateDue, CREW, FX_AGENTS, COMPANY, draftUpdate } from './data';
-import { approveRenewal, approvePack, approvePO, sendUpdate } from './actions';
+import { useFx, fx, renewalRows, TENDERS, tenderView, fmtD, daysTo, DOCS, GROUPS, groupState, groupTotal, inr, lakh, NEEDS, SITES, ORDERS, updateDue, CREW, FX_AGENTS, COMPANY, draftUpdate, LADDER, iso, type SiteId } from './data';
+import { approveRenewal, preparePack, approvePack, approvePO, sendUpdate } from './actions';
 
 const Pill = ({ left }: { left: number }) => <Badge tone={left < 0 ? 'red' : left <= 15 ? 'red' : left <= 45 ? 'amber' : 'green'} dot>{left < 0 ? `Expired ${-left}d ago` : `${left} days left`}</Badge>;
-const CHIPS = ['Which approvals expire this month?', 'Prepare the tender pack for AP FiberGrid', "What are site 2's open purchase needs?", 'Draft a status update for the customer in Germany'];
+const CHIPS = ['What expires this quarter at the Hosur site?', 'Which approvals expire this month?', 'Prepare the tender pack for AP FiberGrid', "What are site 2's open purchase needs?", 'Draft a status update for the customer in Germany'];
 
 /* ───────── Today ───────── */
 export function FxHome() {
@@ -29,17 +29,21 @@ export function FxHome() {
       </div>
     </div>
   );
-  const ren = renewalRows(s).filter((x) => x.left <= 30 && x.status !== 'Filed – awaiting authority');
+  const ren = renewalRows(s).filter((x) => (x.left <= 30 || x.late) && x.status !== 'Filed – awaiting authority');
   const tq = TENDERS.map((t) => ({ t, v: tenderView(s, t) })).filter((x) => !x.v.approved).sort((a, b) => a.t.closes.localeCompare(b.t.closes));
   const buys = GROUPS.map((g) => groupState(s, g)).filter((g) => !g.po);
   const ups = ORDERS.filter((o) => updateDue(s, o));
   type Row = { k: string; icon: React.ElementType; tone: string; text: string; sub: string; cta: string; go: () => void; open: string };
   const rows: Row[] = [
-    ...ren.slice(0, 3).map((x): Row => ({ k: x.r.id, icon: ShieldAlert, tone: x.left < 0 ? 'bg-rose-500' : 'bg-amber-500', text: `${x.d.name} – ${x.left < 0 ? `expired ${-x.left} days ago` : `expires in ${x.left} days`}`, sub: x.r.agentNote, cta: x.status.startsWith('Pack ready') ? 'Approve renewal' : 'Start renewal', go: () => x.status.startsWith('Pack ready') ? approveRenewal(ctx, x.r.id) : nav('/renewals'), open: '/renewals' })),
-    ...tq.filter((x) => x.v.open.length).slice(0, 2).map((x): Row => ({ k: x.t.id, icon: FileCheck2, tone: 'bg-brand-500', text: `${x.t.id} ${x.t.name}: ${x.v.open.length} questions for you`, sub: `${x.v.pct}% already filled from your library · closes ${fmtD(x.t.closes)} · ${lakh(x.t.value)}`, cta: 'Answer', go: () => nav(`/tenders?t=${x.t.id}`), open: `/tenders?t=${x.t.id}` })),
-    ...buys.slice(0, 2).map((g): Row => ({ k: g.id, icon: ShoppingCart, tone: 'bg-violet-500', text: `Buy ${g.item} – ${g.qty.toLocaleString('en-IN')} ${g.unit} from ${g.quotes[g.pick].supplier}`, sub: g.saving, cta: `Approve ${inr(groupTotal(g))}`, go: () => approvePO(ctx, g.id), open: '/purchasing' })),
-    ...ups.map((o): Row => ({ k: o.id, icon: Globe2, tone: 'bg-emerald-500', text: `${o.contact} (${o.country}) is waiting for an update on ${o.id}`, sub: `Last update ${o.lastUpdateDays} days ago · draft ready from floor + QA data`, cta: 'Review & send', go: () => sendUpdate(ctx, o.id), open: `/customers?o=${o.id}` })),
-  ];
+    ...(ren.length ? [((): Row => { const ready = ren.filter((x) => x.status.startsWith('Pack ready')); const x = ren[0]; const many = ren.length > 1;
+      return { k: 'licences', icon: ShieldAlert, tone: x.left < 0 ? 'bg-rose-500' : 'bg-amber-500', text: many ? `${ren.length} licences need you – ${x.r.kind} (${x.r.site === 'All' ? 'Company' : SITES[x.r.site].short}) ${x.left < 0 ? `expired ${-x.left} days ago` : `expires in ${x.left} days`}` : `${x.d.name} – ${x.left < 0 ? `expired ${-x.left} days ago` : `expires in ${x.left} days`}`,
+        sub: ready.length ? `Renewal pack${ready.length > 1 ? 's' : ''} ready for ${ready.map((y) => `${y.r.kind} ${y.r.site === 'All' ? '' : SITES[y.r.site].short}`).join(' and ')} · ${x.r.agentNote}` : x.r.agentNote,
+        cta: ready.length > 1 ? `Approve ${ready.length} & file` : ready.length ? 'Approve & file' : 'Draft renewal pack', go: () => ready.length ? ready.forEach((y) => approveRenewal(ctx, y.r.id)) : preparePack(ctx, x.r.id), open: '/renewals' }; })()] : []),
+    ...tq.filter((x) => x.v.open.length).slice(0, 1).map((x): Row => ({ k: x.t.id, icon: FileCheck2, tone: 'bg-brand-500', text: `${x.t.id} ${x.t.name}: ${x.v.open.length} questions for you`, sub: `${x.v.pct}% already filled from your library · closes ${fmtD(x.t.closes)} · ${lakh(x.t.value)}`, cta: 'Answer', go: () => nav(`/tenders?t=${x.t.id}`), open: `/tenders?t=${x.t.id}` })),
+    ...buys.slice(0, 1).map((g): Row => ({ k: g.id, icon: ShoppingCart, tone: 'bg-violet-500', text: `Buy ${g.item} – ${g.qty.toLocaleString('en-IN')} ${g.unit} from ${g.quotes[g.pick].supplier}`, sub: g.saving, cta: `Approve ${inr(groupTotal(g))}`, go: () => approvePO(ctx, g.id), open: '/purchasing' })),
+    ...CREW.filter((c) => c.need && !s.booked[c.site]).map((c): Row => ({ k: 'crew-' + c.site, icon: Users, tone: 'bg-sky-500', text: `${SITES[c.site].short}: ${c.need}`, sub: `${c.presentDaily} of ${c.daily} daily-wage workers in today · ${c.agency} can send 8 by 2 pm at ${inr(c.dailyRate)}/day (${inr(8 * c.dailyRate)})`, cta: `Book 8 · ${inr(8 * c.dailyRate)}`, go: () => { fx.set((d) => { d.booked[c.site] = true; }); ctx.update(() => {}, `Booked 8 daily-wage workers for ${SITES[c.site].short} from ${c.agency} (simulated)`, { module: 'workforce', agent: true }); ctx.toast(`${c.agency} asked for 8 loaders by 2 pm – WhatsApp simulated`, 'green'); }, open: '/workforce' })),
+    ...ups.slice(0, 1).map((o): Row => ({ k: o.id, icon: Globe2, tone: 'bg-emerald-500', text: `${o.contact} (${o.country}) is waiting for an update on ${o.id}`, sub: `Last update ${o.lastUpdateDays} days ago · draft ready from floor + QA data`, cta: 'Review & send', go: () => sendUpdate(ctx, o.id), open: `/customers?o=${o.id}` })),
+  ].slice(0, 5);
   const crew = CREW.reduce((a, c) => a + c.presentFt + c.presentContract, 0); const crewT = CREW.reduce((a, c) => a + c.ft + c.contract, 0);
   return (
     <div className="pb-6">
@@ -49,7 +53,7 @@ export function FxHome() {
         <div className="mt-5 text-left"><Composer chat={{ ...chat, ask }} big placeholder="Which approvals expire this month?" footer={<span className="inline-flex items-center gap-1.5"><Sparkles size={12} className="text-brand-500" />Knows your licences, tenders, site purchases, export orders and people</span>} /></div>
         <div className="mt-3 flex flex-wrap justify-center gap-2">{CHIPS.map((c) => <button key={c} onClick={() => ask(c)} className="chip-gloss rounded-full px-3 py-1.5 text-[13px] text-slate-600 hover:text-brand-700">{c}</button>)}</div>
       </section>
-      <section className="mx-auto mt-6 grid max-w-[1240px] gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <section className="mx-auto mt-6 max-w-[820px]">
         <div className="tile-gloss rounded-3xl p-4" data-testid="needs-today">
           <div className="mb-2 flex items-center justify-between"><h2 className="text-[15px] font-semibold text-slate-900">Needs you today</h2><span className="rounded-full bg-rose-50 px-2 py-0.5 text-2xs font-semibold text-rose-600">{rows.length}</span></div>
           {rows.length === 0 ? <div className="py-6 text-center text-[13px] text-slate-500"><CheckCircle2 className="mx-auto mb-1 text-emerald-500" />All clear for today.</div> :
@@ -60,19 +64,7 @@ export function FxHome() {
               <button onClick={r.go} data-cta={r.k} className="btn-primary h-8 shrink-0 whitespace-nowrap rounded-full px-3 text-[12px] font-medium">{r.cta}</button>
             </div>))}</div>}
         </div>
-        <div className="space-y-4">
-          <div className="agent-panel rounded-3xl p-4" data-testid="agent-activity">
-            <div className="mb-2 flex items-center justify-between"><h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900"><span className="live-dot text-emerald-500" />Agents at work</h2><Link to="/agents" className="text-[12px] font-medium text-brand-700 hover:underline">Settings →</Link></div>
-            <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 text-[13px]">
-              {[['Renewals watcher', `Checked ${DOCS.filter((d) => d.validTill).length} licences · ${ren.length} due in 30 days · ${ren.filter((x) => x.status.startsWith('Pack')).length} packs ready`, '/renewals'],
-                ['Tender assistant', `${TENDERS.length} tenders filled from library (${TENDERS.map((t) => tenderView(s, t).pct + '%').join(', ')})`, '/tenders'],
-                ['Purchase consolidator', `${NEEDS.length} site needs → ${GROUPS.length} buys · found 1 internal transfer from Site 3`, '/purchasing'],
-                ['Customer update writer', `${ups.length} customer update${ups.length === 1 ? '' : 's'} drafted from floor + QA notes`, '/customers']].map(([a, t, to]) => (
-                <Link key={a} to={to} className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-slate-50"><Bot size={15} className="mt-0.5 shrink-0 text-violet-600" /><div><div className="font-medium text-slate-800">{a}</div><div className="text-2xs text-slate-500">{t}</div></div></Link>))}
-            </div>
-          </div>
-          <Link to="/workforce" className="tile-gloss block rounded-3xl p-4"><div className="flex items-center gap-2 text-[13px] font-semibold text-slate-900"><Users size={15} className="text-brand-600" />At work today</div><div className="mt-1 text-[22px] font-semibold text-slate-900">{crew} <span className="text-[13px] font-normal text-slate-500">of {crewT} · 70 full-time, 175 contract</span></div></Link>
-        </div>
+        <div className="mt-2 text-right"><Link to="/renewals" className="text-[12px] font-medium text-brand-700 hover:underline">Full licence register →</Link></div>
       </section>
       <div className="mt-6 text-center"><button onClick={() => { fx.reset(); ctx.update((d) => { d.chat = []; }); ctx.toast('Factory demo data restored', 'blue'); }} className="inline-flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-700"><RotateCcw size={12} />Reset demo</button></div>
     </div>
@@ -115,22 +107,46 @@ function AnswerBox({ hint, onSave }: { hint?: string; onSave: (a: string) => voi
   return <div><div className="mb-1 text-2xs text-slate-500">💡 {hint}</div><div className="flex gap-2"><input value={a} onChange={(e) => setA(e.target.value)} placeholder="Type your answer" className="h-8 flex-1 rounded-lg border border-slate-200 px-2 text-[13px]" /><Button size="sm" variant="primary" disabled={!a.trim()} onClick={() => onSave(a.trim())}>Save</Button></div></div>;
 }
 
-/* ───────── Approvals & renewals ───────── */
+/* ───────── Licence & approval register ───────── */
 export function FxRenewals() {
-  const ctx = useStore(); const s = useFx(); const rows = renewalRows(s);
+  const ctx = useStore(); const s = useFx(); const [params, setParams] = useSearchParams();
+  const [site, setSite] = useState<'All' | SiteId>('All'); const [win, setWin] = useState<0 | 30 | 60 | 90>(0);
+  const open = params.get('r');
+  const all = renewalRows(s); const live = all.filter((x) => x.status !== 'Filed – awaiting authority');
+  const b = { over: live.filter((x) => x.left < 0), d30: live.filter((x) => x.left >= 0 && x.left <= 30), d60: live.filter((x) => x.left > 30 && x.left <= 60), d90: live.filter((x) => x.left > 60 && x.left <= 90) };
+  const rows = all.filter((x) => (site === 'All' || x.r.site === site || x.r.site === 'All') && (!win || x.left <= win));
+  const Tile = ({ k, label, n, tone }: { k: 0 | 30 | 60 | 90; label: string; n: number; tone: string }) => (
+    <button onClick={() => setWin(win === k ? 0 : k)} className={cx('rounded-2xl border px-3 py-2.5 text-left', win === k && k ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-white')}><div className={cx('text-[22px] font-semibold', tone)}>{n}</div><div className="text-2xs text-slate-500">{label}</div></button>);
   return (
     <div className="space-y-4">
-      <PageHeader crumbs={[{ label: 'Today', to: '/' }, { label: 'Approvals & renewals' }]} title="Approvals & renewals" subtitle="Every licence, NOC and certificate across 3 sites. The agent starts each renewal early enough for the authority's usual time, prepares the pack, and you approve." />
-      <Card pad={false}><table className="w-full text-[13px]"><thead className="bg-slate-50 text-left text-2xs uppercase text-slate-500"><tr><th className="px-3 py-2">Approval</th><th className="px-3 py-2">Expires</th><th className="px-3 py-2">Owner → approver</th><th className="px-3 py-2">Status</th><th /></tr></thead>
-        <tbody className="divide-y divide-slate-100">{rows.map((x) => (
-          <tr key={x.r.id} className="align-top">
-            <td className="px-3 py-2.5"><div className="font-medium text-slate-800">{x.d.name}</div><div className="text-2xs text-slate-500">{x.r.authority} · fee {x.r.fee ? inr(x.r.fee) : 'nil'}</div><div className="mt-1 max-w-[460px] text-2xs text-slate-600">🤖 {x.r.agentNote}</div></td>
-            <td className="px-3 py-2.5 whitespace-nowrap">{fmtD(x.d.validTill!)}<div className="mt-1"><Pill left={x.left} /></div>{x.late && x.status !== 'Filed – awaiting authority' && <div className="mt-1 text-2xs text-rose-600">Authority takes ~{x.r.leadDays} days</div>}</td>
-            <td className="px-3 py-2.5 text-2xs text-slate-600">{x.r.owner} → {x.r.approver}</td>
-            <td className="px-3 py-2.5"><Badge tone={x.status.startsWith('Filed') ? 'green' : x.status.startsWith('Pack') ? 'blue' : 'gray'}>{x.status}</Badge></td>
-            <td className="px-3 py-2.5 text-right">{x.status.startsWith('Filed') ? <span className="text-2xs text-emerald-700">Chasing in 7 days</span> : x.status.startsWith('Pack') ? <Button size="sm" variant="primary" onClick={() => approveRenewal(ctx, x.r.id)}>Approve & file</Button> : <Button size="sm" onClick={() => { fx.set((d) => { d.renewals[x.r.id] = 'Pack ready – needs your OK'; }); ctx.toast(`Renewal pack prepared and sent to ${x.r.owner} to check (simulated)`, 'blue'); }}>Prepare pack</Button>}</td>
-          </tr>))}</tbody></table></Card>
-      <p className="text-2xs text-slate-400">Reminders go to the owner 45, 30, 15 and 7 days before expiry on WhatsApp and email (simulated in this demo).</p>
+      <PageHeader crumbs={[{ label: 'Today', to: '/' }, { label: 'Licences & approvals' }]} title="Licences & approvals – all sites" subtitle="Every government licence, NOC and consent for the 3 sites in one register. The agent starts each renewal early enough for the authority, drafts the pack from your document library, and waits for your OK." />
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4" data-testid="timeline">
+        <Tile k={0} label="Overdue – act today" n={b.over.length} tone="text-rose-600" />
+        <Tile k={30} label="Expire in 30 days" n={b.over.length + b.d30.length} tone="text-amber-600" />
+        <Tile k={60} label="Expire in 60 days" n={b.over.length + b.d30.length + b.d60.length} tone="text-slate-800" />
+        <Tile k={90} label="Expire in 90 days" n={live.filter((x) => x.left <= 90).length} tone="text-slate-800" />
+      </div>
+      <div className="flex flex-wrap gap-1.5">{(['All', 'S1', 'S2', 'S3'] as const).map((k) => <button key={k} onClick={() => setSite(k)} className={cx('rounded-full px-3 py-1 text-[12.5px]', site === k ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200')}>{k === 'All' ? 'All sites' : SITES[k].short}</button>)}</div>
+      <Card pad={false}><table className="w-full text-[13px]"><thead className="bg-slate-50 text-left text-2xs uppercase text-slate-500"><tr><th className="px-3 py-2">Licence</th><th className="px-3 py-2">Authority · number</th><th className="px-3 py-2">Issued → expires</th><th className="px-3 py-2">Owner</th><th className="px-3 py-2">Status</th><th /></tr></thead>
+        <tbody className="divide-y divide-slate-100">{rows.map((x) => { const isOpen = open === x.r.id; const missing = x.checklist.filter((c) => !c.have); const filed = x.status.startsWith('Filed'); return (<React.Fragment key={x.r.id}>
+          <tr data-reg={x.r.id} className={cx('cursor-pointer align-top hover:bg-slate-50/70', x.overdue && !filed && 'bg-rose-50/40')} onClick={() => setParams(isOpen ? {} : { r: x.r.id })}>
+            <td className="px-3 py-2.5"><div className="font-medium text-slate-800">{x.r.kind}</div><div className="text-2xs text-slate-500">{x.r.site === 'All' ? 'Company' : SITES[x.r.site].short} · 📎 certificate on file</div></td>
+            <td className="px-3 py-2.5 text-2xs text-slate-600"><div>{x.r.authority} <span className="text-slate-400">({x.r.level})</span></div><div className="font-mono">{x.r.number}</div></td>
+            <td className="px-3 py-2.5 whitespace-nowrap text-2xs">{fmtD(x.r.issued)} → <b>{fmtD(x.d.validTill!)}</b><div className="mt-1">{filed ? <Badge tone="green">Filed</Badge> : <Pill left={x.left} />}</div>{x.late && !filed && x.left >= 0 && <div className="mt-1 text-rose-600">Authority takes ~{x.r.leadDays} days – start now</div>}</td>
+            <td className="px-3 py-2.5 text-2xs text-slate-600">{x.r.owner}<div className="text-slate-400">approver: {x.r.approver}</div></td>
+            <td className="px-3 py-2.5"><Badge tone={filed ? 'green' : x.overdue ? 'red' : x.status.startsWith('Pack') ? 'blue' : 'gray'}>{x.overdue && !filed ? 'Overdue' : x.status}</Badge></td>
+            <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>{filed ? <span className="text-2xs text-emerald-700">Chasing in 7 days</span> : x.left > 90 ? <span className="text-2xs text-slate-400">No action</span> : x.status.startsWith('Pack') ? <Button size="sm" variant="primary" onClick={() => approveRenewal(ctx, x.r.id)}>Approve & file</Button> : <Button size="sm" onClick={() => { preparePack(ctx, x.r.id); setParams({ r: x.r.id }); }}>Draft pack</Button>}</td>
+          </tr>
+          {isOpen && <tr data-detail={x.r.id}><td colSpan={6} className="bg-slate-50/60 px-4 py-3"><div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
+            <div><div className="mb-1 text-2xs font-semibold uppercase text-slate-500">Renewal checklist · {x.checklist.length - missing.length} of {x.checklist.length} ready</div>
+              {x.checklist.map((c) => <div key={c.label} className="flex items-center gap-2 py-0.5 text-[12.5px]"><span className={c.have ? 'text-emerald-600' : 'text-rose-500'}>{c.have ? '✓' : '✗'}</span><span className="text-slate-700">{c.label}</span>{c.docId && <span className="text-2xs text-slate-400">from library</span>}{!c.have && <span className="text-2xs text-rose-600">– to collect</span>}</div>)}
+              <div className="mt-2 text-[12.5px] text-violet-700">🤖 {x.r.agentNote}{missing.length ? ` Missing: ${missing.map((m) => m.label.toLowerCase()).join(', ')} – asked ${x.r.owner.split(' ')[0]} on WhatsApp (simulated).` : ''}</div>
+              <div className="mt-1 text-2xs text-slate-500">Fee {x.r.fee ? inr(x.r.fee) : 'nil'} · authority usually takes {x.r.leadDays} days</div></div>
+            <div><div className="mb-1 text-2xs font-semibold uppercase text-slate-500">Reminders (90 / 60 / 30 / 7 days)</div>
+              {LADDER.map((l) => { const sent = x.left <= l.at; return <div key={l.at} className="flex items-center gap-2 py-0.5 text-[12.5px]"><span className={sent ? 'text-emerald-600' : 'text-slate-300'}>{sent ? '●' : '○'}</span><span className="w-14 text-slate-500">{l.at} days</span><span className="text-slate-700">{l.ch} → {l.to === 'owner' ? x.r.owner : l.to === 'owner and Ranjith' ? `${x.r.owner} + Ranjith` : l.to}</span><span className="text-2xs text-slate-400">{sent ? (filed ? 'sent' : 'sent · simulated') : `due ${fmtD(iso(x.left - l.at))}`}</span></div>; })}</div>
+          </div></td></tr>}
+        </React.Fragment>); })}</tbody></table></Card>
+      <p className="text-2xs text-slate-400">Reminders escalate at 90, 60, 30 and 7 days before expiry – in-app, WhatsApp and email. All reminders and filings in this demo are simulated; nothing is sent to any authority.</p>
     </div>
   );
 }
@@ -176,7 +192,7 @@ export function FxCustomers() {
           <div className="space-y-2">{o.mails.map((m, i) => (
             <div key={i} className={cx('rounded-xl px-3 py-2 text-[13px]', m.dir === 'in' ? 'bg-sky-50' : 'bg-slate-50')}><div className="text-2xs font-semibold text-slate-500">{m.dir === 'in' ? '✉️ ' : '🏭 '}{m.from} · {fmtD(m.at)}</div>{m.text}</div>))}
             {o.ncr && <Callout tone="amber" title="Open QA issue">{o.ncr}</Callout>}
-            <div className="grid grid-cols-3 gap-2 text-center text-[12px]"><div className="rounded-xl bg-slate-50 p-2"><div className="text-[17px] font-semibold">{o.qaInspected.toLocaleString('en-IN')}</div>inspected</div><div className="rounded-xl bg-emerald-50 p-2"><div className="text-[17px] font-semibold">{o.qaPass.toLocaleString('en-IN')}</div>passed first time</div><div className="rounded-xl bg-rose-50 p-2"><div className="text-[17px] font-semibold">{(o.qaInspected - o.qaPass).toLocaleString('en-IN')}</div>reworked</div></div>
+            <div className="grid grid-cols-2 gap-2 text-center text-[12px]"><div className="rounded-xl bg-slate-50 p-2"><div className="text-[17px] font-semibold">{o.qaInspected.toLocaleString('en-IN')}</div>inspected</div><div className="rounded-xl bg-emerald-50 p-2"><div className="text-[17px] font-semibold">{o.qaPass.toLocaleString('en-IN')}</div>passed first time</div><div className="rounded-xl bg-rose-50 p-2"><div className="text-[17px] font-semibold">{(o.qaInspected - o.qaPass).toLocaleString('en-IN')}</div>reworked</div></div>
           </div>
         </Card>
         <Card title={`Draft update to ${o.contact}`} subtitle={`${o.email} · written from the floor and QA data`} actions={s.updates[o.id] ? <Badge tone="green" dot>Sent (simulated)</Badge> : <Button variant="primary" onClick={() => sendUpdate(ctx, o.id)}>Review & send</Button>}>
@@ -192,12 +208,13 @@ export function FxWorkforce() {
   const s = useFx(); const clraOk = String(s.renewals['RN-01'] || '').startsWith('Filed');
   return (
     <div className="space-y-4">
-      <PageHeader crumbs={[{ label: 'Today', to: '/' }, { label: 'Workforce' }]} title="Workforce today" subtitle="Full-time and contract headcount by site, from the gate biometric." />
+      <PageHeader crumbs={[{ label: 'Today', to: '/' }, { label: 'Workforce' }]} title="Workforce today" subtitle="Full-time, contract and daily-wage headcount by site, from the gate biometric." />
       {!clraOk && <Callout tone="red" icon={<ShieldAlert size={16} />} title="Site 3: contract labour licence expired 3 days ago" action={<Link to="/renewals" className="text-[12px] font-medium text-brand-700 underline">Approve renewal</Link>}>57 contract workers are on site today without licence cover.</Callout>}
       <div className="grid gap-3 md:grid-cols-3">{CREW.map((c) => (
         <Card key={c.site} title={SITES[c.site].short} subtitle={`${SITES[c.site].makes} · ${c.shifts}`}>
-          <div className="grid grid-cols-2 gap-2 text-center"><div className="rounded-xl bg-brand-50 p-2"><div className="text-[20px] font-semibold">{c.presentFt}<span className="text-[13px] text-slate-500">/{c.ft}</span></div><div className="text-2xs">Full-time present</div></div><div className="rounded-xl bg-amber-50 p-2"><div className="text-[20px] font-semibold">{c.presentContract}<span className="text-[13px] text-slate-500">/{c.contract}</span></div><div className="text-2xs">Contract present</div></div></div>
-          <div className="mt-2 text-2xs text-slate-500">Contractor: {c.agency} · absent today: {c.ft - c.presentFt + c.contract - c.presentContract}</div>
+          <div className="grid grid-cols-3 gap-2 text-center"><div className="rounded-xl bg-brand-50 p-2"><div className="text-[20px] font-semibold">{c.presentFt}<span className="text-[13px] text-slate-500">/{c.ft}</span></div><div className="text-2xs">Full-time present</div></div><div className="rounded-xl bg-amber-50 p-2"><div className="text-[20px] font-semibold">{c.presentContract}<span className="text-[13px] text-slate-500">/{c.contract}</span></div><div className="text-2xs">Contract present</div></div><div className="rounded-xl bg-sky-50 p-2"><div className="text-[20px] font-semibold">{c.presentDaily + (s.booked[c.site] ? 8 : 0)}<span className="text-[13px] text-slate-500">/{c.daily}</span></div><div className="text-2xs">Daily wage</div></div></div>
+          <div className="mt-2 text-2xs text-slate-500">Daily wage: <b>{c.presentDaily}/{c.daily}</b> at {inr(c.dailyRate)}/day{c.need && !s.booked[c.site] ? <span className="text-rose-600"> · {c.need}</span> : c.need ? <span className="text-emerald-700"> · 8 booked from agency</span> : null}</div>
+          <div className="mt-1 text-2xs text-slate-500">Contractor: {c.agency} · absent today: {c.ft - c.presentFt + c.contract - c.presentContract}</div>
         </Card>))}</div>
     </div>
   );

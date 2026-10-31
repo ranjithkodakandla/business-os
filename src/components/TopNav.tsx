@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronDown, Menu, X } from 'lucide-react';
 import { useStore, type DemoState } from '../lib/store';
-import { MODULES, GROUPS, GROUP_LABEL, GROUP_ICON, type Group } from '../lib/nav';
+import { MODULES, MAIN_MORE, GROUPS, GROUP_LABEL, GROUP_ICON, type Group } from '../lib/nav';
 import { can, ROLES, ROLE_USER, roleOf, type Role } from '../lib/rbac';
 import { approvals, kpis, cash, isLow, available } from '../lib/domain';
 import { lakh } from '../lib/format';
@@ -38,6 +38,7 @@ function Context({ g, s }: { g: Group; s: DemoState }) {
   );
 }
 
+const MORE = 'More' as Group;
 export function TopNav() {
   const { s } = useStore(); const loc = useLocation(); const groups = useNavGroups();
   const [open, setOpen] = useState<Group | null>(null); const ref = useRef<HTMLDivElement>(null);
@@ -56,6 +57,7 @@ export function TopNav() {
         {FACTORY && MODULES.map((m) => { const Icon = m.icon; const active = isOn(m.to); return (
           <NavLink key={m.key} to={m.to} data-menu={m.key} className={cx('relative flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-medium transition', active ? 'tab-active text-white' : 'text-slate-600 hover:bg-white/80 hover:text-slate-900')}>
             <Icon size={15} strokeWidth={1.9} className="hidden xl:block" />{m.label[s.lang as 'en'] || m.label.en}</NavLink>); })}
+        {FACTORY && <button data-menu="more" aria-haspopup="true" onClick={() => setOpen(open === MORE ? null : MORE)} className={cx('relative flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-medium', MAIN_MORE.some((m) => isOn(m.to)) ? 'tab-active text-white' : 'text-slate-600 hover:bg-white/80')}>More<ChevronDown size={12} className="opacity-50" /></button>}
         {!FACTORY && groups.map(([g, ms], i) => {
           const Icon = GROUP_ICON[g]; const active = ms.some((m) => isOn(m.to)); const b = ms.reduce((a, m) => a + badgeOf(s, m.key), 0);
           return (
@@ -67,7 +69,7 @@ export function TopNav() {
             </button>);
         })}
       </nav>
-      {open && (() => { const ms = groups.find(([g]) => g === open)?.[1] || []; return (
+      {open && (() => { const ms = FACTORY && open === MORE ? MAIN_MORE.filter((m) => can(s, m.key)) : groups.find(([g]) => g === open)?.[1] || []; return (
         <div role="menu" data-testid="mega-menu" data-group={open} className="glass-pop menu-in fixed left-1/2 top-[60px] z-50 flex w-[min(860px,calc(100vw-24px))] -translate-x-1/2 gap-3 rounded-3xl p-3">
           <div className="grid flex-1 grid-cols-2 gap-1.5">
             {ms.map((m) => { const b = badgeOf(s, m.key); return (
@@ -77,7 +79,7 @@ export function TopNav() {
                 <span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-slate-900">{m.label[s.lang as 'en']}{b > 0 && <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-4 text-white">{b}</span>}</span><span className="block truncate text-[12px] text-slate-500">{m.desc}</span></span>
               </NavLink>); })}
           </div>
-          <Context g={open} s={s} />
+          {open !== MORE && <Context g={open} s={s} />}
         </div>); })()}
     </div>
   );

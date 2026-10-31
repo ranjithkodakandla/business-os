@@ -1,24 +1,29 @@
 /** Factory chat: answers the owner's real questions straight from the demo data, with one-tap proposals. Anything else goes to the AI with factoryContext(). */
 import type { Resp } from '../lib/converse';
-import { fx, renewalRows, TENDERS, tenderView, fmtD, GROUPS, groupState, groupTotal, inr, lakh, SITES, siteNeeds, type SiteId, ORDERS, draftUpdate, CREW, COMPANY, DOCS, NEEDS } from './data';
+import { fx, iso, renewalRows, TENDERS, tenderView, fmtD, GROUPS, groupState, groupTotal, inr, lakh, SITES, siteNeeds, type SiteId, ORDERS, draftUpdate, CREW, COMPANY, DOCS, NEEDS } from './data';
 
 const R = (title: string, blocks: Resp['blocks'], actions: Resp['actions'] = [], links: Resp['links'] = []): Resp => ({ title, blocks, sources: [], actions, links });
 const COUNTRY: Record<string, string> = { germany: 'Germany', german: 'Germany', uae: 'UAE', dubai: 'UAE', usa: 'USA', us: 'USA', america: 'USA' };
 
 export function factoryRespond(raw: string): Resp | null {
   const q = raw.toLowerCase(); const s = fx.get();
-  const siteM = q.match(/site\s*([123])|\b(cherlapally|shamshabad|medak)\b/);
-  const site = siteM ? (siteM[1] ? `S${siteM[1]}` : ({ cherlapally: 'S1', shamshabad: 'S2', medak: 'S3' } as Record<string, string>)[siteM[2]]) as SiteId : null;
+  const siteM = q.match(/site\s*([123])|\b(cherlapally|hosur|medak)\b/);
+  const site = siteM ? (siteM[1] ? `S${siteM[1]}` : ({ cherlapally: 'S1', hosur: 'S2', medak: 'S3' } as Record<string, string>)[siteM[2]]) as SiteId : null;
 
-  // 1. Approvals and renewals
-  if (/expir|renew|licen[cs]e|\bnoc\b|consent|approvals?\b.*(due|month|week|expir)|compliance/.test(q) && !/tender|bid/.test(q)) {
-    const horizon = /week/.test(q) ? 7 : /quarter|90/.test(q) ? 90 : 30;
-    const rows = renewalRows(s).filter((x) => x.left <= horizon && x.status !== 'Filed – awaiting authority');
-    if (!rows.length) return R(`Nothing expires in the next ${horizon} days that isn't already filed.`, [], [], [{ label: 'All approvals', to: '/renewals' }]);
-    return R(`${rows.length} approvals expire in the next ${horizon} days${rows.some((x) => x.left < 0) ? ' – one has already expired' : ''}`, [
-      { type: 'table', cols: ['Approval', 'Expires', 'Days left', 'Status'], rows: rows.map((x) => [x.d.name, fmtD(x.d.validTill!), x.left < 0 ? `Expired ${-x.left}d ago` : `${x.left}${x.late ? ' (authority needs ' + x.r.leadDays + ')' : ''}`, x.status]) },
+  // 1. Licences and approvals (per site register)
+  if (/expir|renew|licen[cs]e|\bnoc\b|consent|\bcto\b|approvals?\b|compliance|overdue|register/.test(q) && !/tender|bid/.test(q)) {
+    const qEnd = (() => { const d = new Date(); const m = Math.floor(d.getMonth() / 3) * 3 + 3; return Math.round((+new Date(d.getFullYear(), m, 0) - +new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5); })();
+    const mEnd = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() - d.getDate(); })();
+    const [horizon, label] = /overdue|expired/.test(q) ? [0, 'already expired'] : /week/.test(q) ? [7, 'in the next 7 days'] : /quarter/.test(q) ? [qEnd, `this quarter (by ${fmtD(iso(qEnd))})`] : /90/.test(q) ? [90, 'in 90 days'] : /60/.test(q) ? [60, 'in 60 days'] : /this month/.test(q) ? [Math.max(mEnd, 30), 'in the next 30 days'] : [30, 'in the next 30 days'];
+    const sname = site ? SITES[site].short : 'all sites';
+    const rows = renewalRows(s).filter((x) => x.left <= horizon && x.status !== 'Filed – awaiting authority' && (!site || x.r.site === site));
+    if (!rows.length) return R(`Nothing at ${sname} expires ${label} that isn't already filed.`, [], [], [{ label: 'Open licence register', to: '/renewals' }]);
+    const late = rows.filter((x) => x.late || x.left < 0);
+    return R(`${rows.length} licence${rows.length === 1 ? '' : 's'} at ${sname} expire${rows.length === 1 ? 's' : ''} ${label}`, [
+      { type: 'table', cols: ['Licence', 'Site', 'Authority', 'Expires', 'Status'], rows: rows.map((x) => [x.r.kind, x.r.site === 'All' ? 'Company' : SITES[x.r.site].short, x.r.authority, `${fmtD(x.d.validTill!)} · ${x.left < 0 ? `overdue ${-x.left}d` : `${x.left}d left`}`, x.left < 0 ? 'Overdue' : x.status]) },
+      ...(late.length ? [{ type: 'facts' as const, items: late.slice(0, 3).map((x) => ({ label: `${x.r.kind} – ${x.r.site === 'All' ? 'Company' : SITES[x.r.site].short}`, value: x.left < 0 ? `expired ${-x.left} days ago` : `authority needs ~${x.r.leadDays} days – start now`, tone: 'red' as const, to: `/renewals?r=${x.r.id}` })) }] : []),
       { type: 'text', text: `**Do first:** ${rows[0].d.name} – ${rows[0].r.agentNote}` },
-    ], [...rows.filter((x) => x.status.startsWith('Pack ready')).map((x, i) => ({ label: `Approve ${x.d.name.split(' – ')[0]} renewal`, kind: `fx:renew:${x.r.id}`, primary: i === 0 }))], [{ label: 'Open approvals & renewals', to: '/renewals' }]);
+    ], rows.filter((x) => x.left <= 60).slice(0, 3).map((x, i) => x.status.startsWith('Pack ready') ? { label: `Approve & file ${x.r.kind}${site ? '' : ' – ' + (x.r.site === 'All' ? 'Company' : SITES[x.r.site].short)}`, kind: `fx:renew:${x.r.id}`, primary: i === 0 } : { label: `Draft renewal pack: ${x.r.kind}`, kind: `fx:prep:${x.r.id}`, primary: i === 0 }), [{ label: 'Open licence register', to: '/renewals' }]);
   }
   // 2. Tenders
   if (/tender|\bbid\b|rfq|rate contract/.test(q)) {
@@ -57,9 +62,9 @@ export function factoryRespond(raw: string): Resp | null {
   // 5. Workforce
   if (/workforce|headcount|attendance|contract|labou?r|workers|staff|employees|present|absent|daily.?wage/.test(q)) {
     const rows = site ? CREW.filter((c) => c.site === site) : CREW;
-    const t = rows.reduce((a, c) => ({ ft: a.ft + c.ft, ct: a.ct + c.contract, pf: a.pf + c.presentFt, pc: a.pc + c.presentContract }), { ft: 0, ct: 0, pf: 0, pc: 0 });
-    return R(`${t.pf + t.pc} of ${t.ft + t.ct} people at work today (${t.ft} full-time, ${t.ct} contract)`, [
-      { type: 'table', cols: ['Site', 'Full-time present', 'Contract present', 'Agency'], align: ['l', 'r', 'r', 'l'], rows: rows.map((c) => [SITES[c.site].short, `${c.presentFt} / ${c.ft}`, `${c.presentContract} / ${c.contract}`, c.agency]) },
+    const t = rows.reduce((a, c) => ({ ft: a.ft + c.ft, ct: a.ct + c.contract, pf: a.pf + c.presentFt, pc: a.pc + c.presentContract, dw: a.dw + c.daily, pd: a.pd + c.presentDaily }), { ft: 0, ct: 0, pf: 0, pc: 0, dw: 0, pd: 0 });
+    return R(`${t.pf + t.pc + t.pd} of ${t.ft + t.ct + t.dw} people at work today (${t.ft} full-time, ${t.ct} contract, ${t.dw} daily wage)`, [
+      { type: 'table', cols: ['Site', 'Full-time', 'Contract', 'Daily wage', 'Agency'], align: ['l', 'r', 'r', 'r', 'l'], rows: rows.map((c) => [SITES[c.site].short, `${c.presentFt} / ${c.ft}`, `${c.presentContract} / ${c.contract}`, `${c.presentDaily + (s.booked[c.site] ? 8 : 0)} / ${c.daily}`, c.agency]) },
       ...(rows.some((c) => c.site === 'S3') ? [{ type: 'facts' as const, items: [{ label: 'Site 3 contract labour licence', value: 'expired 3 days ago – 57 contract workers on site today are not covered', tone: 'red' as const, to: '/renewals' }] }] : []),
     ], rows.some((c) => c.site === 'S3') && !String(s.renewals['RN-01'] || '').startsWith('Filed') ? [{ label: 'Approve CLRA licence renewal', kind: 'fx:renew:RN-01', primary: true }] : [], [{ label: 'Open workforce', to: '/workforce' }]);
   }
@@ -71,13 +76,13 @@ export function factoryRespond(raw: string): Resp | null {
 export function factoryContext(): string {
   const s = fx.get();
   return JSON.stringify({
-    company: `${COMPANY.name} – fictional MSME group, 3 sites: ${Object.values(SITES).map((x) => `${x.name} (${x.makes})`).join('; ')}. Owner Ranjith. 70 full-time + 175 contract workers. Exports to Germany, UAE, USA.`,
-    modules: 'Today, Tenders & documents, Approvals & renewals, Purchasing (multi-site), Customer orders & QA, Workforce, Agents. All sends are simulated.',
-    renewals: renewalRows(s).map((x) => `${x.d.name}: expires ${x.d.validTill} (${x.left} days), ${x.status}`),
+    company: `${COMPANY.name} – fictional MSME group, 3 sites: ${Object.values(SITES).map((x) => `${x.name} (${x.makes})`).join('; ')}. Owner Ranjith. 70 full-time + 175 contract + 36 daily-wage workers. Exports to Germany, UAE, USA.`,
+    modules: 'Today, Tenders & documents, Licences & approvals (per-site register, 90/60/30/7-day reminders), Purchasing (multi-site), Customer orders & QA, Workforce, Agents. All sends are simulated.',
+    renewals: renewalRows(s).map((x) => `${x.d.name} [${x.r.authority}, ${x.r.number}, owner ${x.r.owner}]: expires ${x.d.validTill} (${x.left} days), ${x.status}`),
     tenders: TENDERS.map((t) => { const v = tenderView(s, t); return `${t.id} ${t.name} (${t.buyer}) closes ${t.closes}, ${v.pct}% from library, open questions: ${v.open.map((r) => r.it.ask).join('; ')}`; }),
     library: DOCS.map((d) => d.name + (d.validTill ? ` (valid till ${d.validTill})` : '')),
     purchasing: GROUPS.map((g) => { const x = groupState(s, g); return `${x.item}: ${x.qty} ${x.unit}, best ${x.quotes[x.pick].supplier} ₹${x.quotes[x.pick].price}${x.po ? ', ' + x.po : ''}`; }),
     orders: ORDERS.map((o) => `${o.id} ${o.customer} (${o.country}) ${o.done}/${o.qty} ${o.product}, QA pass ${o.qaPass}/${o.qaInspected}, ships ${o.ship}`),
-    workforce: CREW.map((c) => `${SITES[c.site].short}: ${c.presentFt}/${c.ft} FT, ${c.presentContract}/${c.contract} contract`),
+    workforce: CREW.map((c) => `${SITES[c.site].short}: ${c.presentFt}/${c.ft} FT, ${c.presentContract}/${c.contract} contract, ${c.presentDaily}/${c.daily} daily wage${c.need ? ' – ' + c.need : ''}`),
   });
 }

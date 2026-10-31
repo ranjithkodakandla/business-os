@@ -63,13 +63,15 @@ export const MODULES: NavItem[] = [
 // Factory demo edition: only the screens that solve the factory owner's problems (see src/factory).
 const FX_MODULES: NavItem[] = [
   { key: 'home', to: '/', icon: Home, group: 'Home', label: L('Today', 'आज', 'ఈరోజు'), desc: 'What needs you today' },
+  { key: 'renewals', to: '/renewals', icon: FileCheck2, group: 'Admin', label: L('Licences & approvals', 'लाइसेंस', 'లైసెన్సులు'), desc: 'Licences, NOCs, certificates and expiry reminders' },
   { key: 'tenders', to: '/tenders', icon: FolderOpen, group: 'Sell', label: L('Tenders & documents', 'टेंडर', 'టెండర్లు'), desc: 'Document library and tender packs' },
-  { key: 'renewals', to: '/renewals', icon: FileCheck2, group: 'Admin', label: L('Approvals & renewals', 'लाइसेंस', 'లైసెన్సులు'), desc: 'Licences, NOCs, certificates and expiry reminders' },
   { key: 'purchasing', to: '/purchasing', icon: ShoppingCart, group: 'Buy', label: L('Purchasing', 'ख़रीद', 'కొనుగోళ్లు'), desc: 'Needs from all sites, consolidated' },
   { key: 'customers', to: '/customers', icon: PackageCheck, group: 'Sell', label: L('Customer orders & QA', 'ग्राहक ऑर्डर', 'కస్టమర్ ఆర్డర్లు'), desc: 'Export orders, QA and customer updates' },
   { key: 'workforce', to: '/workforce', icon: Users, group: 'People', label: L('Workforce', 'कर्मचारी', 'ఉద్యోగులు'), desc: 'Full-time and contract by site' },
   { key: 'agents', to: '/agents', icon: Bot, group: 'Admin', label: L('Agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'What each AI agent may do' },
 ];
+/** Factory edition: the full main app stays reachable under More. */
+export const MAIN_MORE: NavItem[] = FACTORY ? MODULES.filter((m) => !['home', 'agents', 'setup', 'billing', 'workspace', 'platform'].includes(m.key)) : [];
 if (FACTORY) MODULES.splice(0, MODULES.length, ...FX_MODULES);
 else MODULES.sort((a, b) => (ORDER.indexOf(a.key) + 99) % 999 - (ORDER.indexOf(b.key) + 99) % 999);
 export const moduleByKey = (k: string) => MODULES.find((m) => m.key === k);

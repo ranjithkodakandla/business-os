@@ -11,6 +11,12 @@ export function approveRenewal(ctx: Ctx, id: string) {
   audit(ctx, 'compliance', `Approved renewal ${id} – ${docById(r.docId)!.name} filed with ${r.authority} (simulated)`, id);
   ctx.toast(`${docById(r.docId)!.name}: renewal approved and filed (simulated). Reminder set to chase in 7 days.`, 'green');
 }
+export function preparePack(ctx: Ctx, id: string) {
+  const r = RENEWALS.find((x) => x.id === id); if (!r) return;
+  fx.set((d) => { d.renewals[id] = 'Pack ready – needs your OK'; });
+  audit(ctx, 'compliance', `Renewals agent drafted the renewal pack for ${docById(r.docId)!.name} from the document library`, id);
+  ctx.toast(`Renewal pack drafted for ${docById(r.docId)!.name} – ${r.checklist.length} documents pulled from your library. Tap "Approve & file" when you are happy.`, 'blue');
+}
 export function approvePack(ctx: Ctx, id: string) {
   const t = TENDERS.find((x) => x.id === id); if (!t) return;
   const v = tenderView(fx.get(), t);
@@ -37,6 +43,7 @@ export function sendUpdate(ctx: Ctx, oid: string) {
 export function runFx(ctx: Ctx, kind: string) {
   const [, what, id] = kind.split(':');
   if (what === 'renew') return approveRenewal(ctx, id);
+  if (what === 'prep') return preparePack(ctx, id);
   if (what === 'renew-all') return RENEWALS.filter((r) => (fx.get().renewals[r.id] || r.status) !== 'Filed – awaiting authority').forEach((r) => approveRenewal(ctx, r.id));
   if (what === 'pack') return approvePack(ctx, id);
   if (what === 'po') return approvePO(ctx, id);

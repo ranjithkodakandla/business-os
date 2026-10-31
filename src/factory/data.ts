@@ -14,7 +14,7 @@ export const COMPANY = { name: 'Shakti Electro-Pack Pvt Ltd', owner: 'Ranjith', 
 export type SiteId = 'S1' | 'S2' | 'S3';
 export const SITES: Record<SiteId, { name: string; short: string; makes: string }> = {
   S1: { name: 'Site 1 · Cherlapally, Hyderabad', short: 'Site 1 Cherlapally', makes: 'RF and communication modules, PCB assembly' },
-  S2: { name: 'Site 2 · Shamshabad, Hyderabad', short: 'Site 2 Shamshabad', makes: 'Drone assembly and flight testing' },
+  S2: { name: 'Site 2 · Hosur, Tamil Nadu', short: 'Site 2 Hosur', makes: 'Drone assembly and flight testing' },
   S3: { name: 'Site 3 · Medak', short: 'Site 3 Medak', makes: 'Corrugated boxes and EPE foam packaging' },
 };
 
@@ -46,17 +46,58 @@ export const DOCS: Doc[] = [
 ];
 export const docById = (id: string) => DOCS.find((d) => d.id === id);
 
-/* ── 2. Approvals and renewals (with approver flow) ── */
-export type Renewal = { id: string; docId: string; authority: string; owner: string; approver: string; status: 'Not started' | 'Pack ready – needs your OK' | 'Filed – awaiting authority'; fee: number; leadDays: number; agentNote: string };
-export const RENEWALS: Renewal[] = [
-  { id: 'RN-01', docId: 'D-CLRA3', authority: 'Labour Dept, Telangana', owner: 'Sunitha (HR)', approver: 'Ranjith', status: 'Pack ready – needs your OK', fee: 7500, leadDays: 30, agentNote: 'Expired 3 days ago. 60 contract workers at Site 3 are not covered – a labour inspection now means a penalty. Renewal form, agency list and 6 months muster are ready.' },
-  { id: 'RN-02', docId: 'D-FIRE3', authority: 'Telangana Fire Services', owner: 'Prakash (Site 3 head)', approver: 'Ranjith', status: 'Pack ready – needs your OK', fee: 18000, leadDays: 15, agentNote: 'Expires in 6 days. Extinguisher refill certificate (12 Oct) and hydrant test report attached. Needed in the AP FiberGrid tender too.' },
-  { id: 'RN-03', docId: 'D-FL1', authority: 'Factories Dept, Telangana', owner: 'Mahesh (Site 1 head)', approver: 'Ranjith', status: 'Not started', fee: 42000, leadDays: 30, agentNote: 'Expires in 12 days, but the department needs about 30 days. Apply this week. Worker count (102) is below the licence limit (150).' },
-  { id: 'RN-04', docId: 'D-SOLV', authority: 'HDFC Bank (branch)', owner: 'Padma (Accounts)', approver: 'Ranjith', status: 'Not started', fee: 1180, leadDays: 5, agentNote: 'Expires in 21 days, before the Krishi drone bid closes. Request letter drafted.' },
-  { id: 'RN-05', docId: 'D-PCB3', authority: 'TS Pollution Control Board', owner: 'Prakash (Site 3 head)', approver: 'Ranjith', status: 'Not started', fee: 25000, leadDays: 45, agentNote: 'Expires in 24 days; the board usually takes 45. Already late – file now and keep the filing receipt for tenders.' },
-  { id: 'RN-06', docId: 'D-HT1', authority: 'TSSPDCL', owner: 'Mahesh (Site 1 head)', approver: 'Ranjith', status: 'Not started', fee: 0, leadDays: 20, agentNote: 'Sanction review in 40 days. Max demand last 3 months was 462 kVA (92% of 500) – consider a load increase with the renewal.' },
-  { id: 'RN-07', docId: 'D-DGCA', authority: 'DGCA (Digital Sky)', owner: 'Arjun (Site 2 head)', approver: 'Ranjith', status: 'Not started', fee: 0, leadDays: 30, agentNote: 'Type certificate renewal in 55 days. Flight-test logs from Site 2 are up to date.' },
+/* ── 2. Licence & approval register – per site, local + state government ── */
+export type RStatus = 'Not started' | 'Pack ready – needs your OK' | 'Filed – awaiting authority';
+export type Renewal = { id: string; docId: string; site: SiteId | 'All'; kind: string; authority: string; level: 'State' | 'Local' | 'Central' | 'Bank'; number: string; issued: string;
+  owner: string; approver: string; status: RStatus; fee: number; leadDays: number; agentNote: string; checklist: { label: string; docId?: string; ok?: boolean }[] };
+const CK = {
+  factory: (s: SiteId) => [{ label: 'Form 2 – renewal application (auto-filled)', ok: true }, { label: 'Approved building plan + occupancy', docId: `D-OCC${s[1]}` }, { label: 'Structural stability certificate', docId: `D-STAB${s[1]}` }, { label: 'PF and ESI challans, last 6 months', docId: 'D-PFESI' }, { label: 'Worker count from muster (auto)', ok: true }],
+  fire: (s: SiteId) => [{ label: 'Extinguisher refill certificate', ok: true }, { label: 'Hydrant / sprinkler test report', ok: s !== 'S1' }, { label: 'Approved building plan + occupancy', docId: `D-OCC${s[1]}` }, { label: 'Previous fire NOC', docId: `D-FIRE${s[1]}` }],
+  pcb: (s: SiteId) => [{ label: 'Online CTO renewal form (auto-filled)', ok: true }, { label: 'Stack / ambient monitoring report (last quarter)', ok: s === 'S3' }, { label: 'Hazardous waste returns (Form 4)', ok: true }, { label: 'Factory licence', docId: `D-FL${s[1]}` }, { label: 'CA certificate of capital investment', docId: 'D-TO' }],
+  elec: (s: SiteId) => [{ label: 'Annual inspection report by licensed contractor', ok: s !== 'S2' }, { label: 'Earthing test results', ok: true }, { label: 'Previous electrical safety certificate', docId: `D-EL${s[1]}` }],
+  trade: (s: SiteId) => [{ label: 'Property tax receipt (current year)', ok: true }, { label: 'GST registration', docId: 'D-GST' }, { label: 'Previous trade licence', docId: `D-TL${s[1]}` }],
+  clra: (s: SiteId) => [{ label: 'Form IV – licence renewal (auto-filled)', ok: true }, { label: 'Agency list with RC numbers', ok: true }, { label: 'Muster + wage register, last 6 months', ok: true }, { label: 'PF and ESI challans', docId: 'D-PFESI' }, { label: 'Factory licence', docId: `D-FL${s[1]}` }],
+  lift: (s: SiteId) => [{ label: 'Lift maintenance contract (AMC)', ok: true }, { label: 'Load test report', ok: false }, { label: 'Previous lift licence', docId: `D-LIFT${s[1]}` }],
+  wm: (s: SiteId) => [{ label: 'Calibration certificates – 6 weighing scales', ok: s !== 'S3' }, { label: 'Previous W&M verification', docId: `D-WM${s[1]}` }],
+};
+type Seed = [id: string, docId: string, site: SiteId | 'All', kind: string, name: string, authority: string, level: Renewal['level'], number: string, issuedAgo: number, days: number, owner: string, status: RStatus, fee: number, lead: number, note: string, ck: Renewal['checklist']];
+const SEEDS: Seed[] = [
+  ['RN-01', 'D-CLRA3', 'S3', 'Contract labour licence (CLRA)', 'Contract labour licence (CLRA) – Site 3', 'Labour Dept, Telangana', 'State', 'CLRA/MDK/2024/0412', 365, -3, 'Sunitha (HR)', 'Pack ready – needs your OK', 7500, 30, 'Expired 3 days ago. 60 contract workers at Site 3 are not covered – a labour inspection now means a penalty. Renewal form, agency list and 6 months muster are ready.', CK.clra('S3')],
+  ['RN-02', 'D-FIRE3', 'S3', 'Fire NOC', 'Fire NOC – Site 3', 'Telangana Fire Services', 'State', 'TSFS/MDK/NOC/2025/1187', 365, 6, 'Prakash (Site 3 head)', 'Pack ready – needs your OK', 18000, 15, 'Expires in 6 days. Extinguisher refill certificate (12 Oct) and hydrant test report attached. Needed in the AP FiberGrid tender too.', CK.fire('S3')],
+  ['RN-03', 'D-FL1', 'S1', 'Factory licence', 'Factory licence – Site 1', 'Factories Dept, Telangana', 'State', 'TS/HYD/FL/18842', 365 * 5, 12, 'Mahesh (Site 1 head)', 'Not started', 42000, 30, 'Expires in 12 days, but the department needs about 30 days. Apply this week. Worker count (102) is below the licence limit (150).', CK.factory('S1')],
+  ['RN-04', 'D-SOLV', 'All', 'Bank solvency certificate', 'Bank solvency certificate (₹5 Cr)', 'HDFC Bank (branch)', 'Bank', 'HDFC/SOLV/26/0931', 180, 21, 'Padma (Accounts)', 'Not started', 1180, 5, 'Expires in 21 days, before the Krishi drone bid closes. Request letter drafted.', [{ label: 'Request letter on letterhead (drafted)', ok: true }, { label: 'Audited balance sheet', docId: 'D-ITR' }]],
+  ['RN-05', 'D-PCB3', 'S3', 'Pollution Board CTO', 'Pollution Board consent to operate (CTO) – Site 3', 'TS Pollution Control Board', 'State', 'TSPCB/CTO/MDK/2023/552', 365 * 3, 24, 'Prakash (Site 3 head)', 'Not started', 25000, 45, 'Expires in 24 days; the board usually takes 45. Already late – file now and keep the filing receipt for tenders.', CK.pcb('S3')],
+  ['RN-06', 'D-HT1', 'S1', 'Electricity HT sanction', 'Electricity HT connection sanction (500 kVA) – Site 1', 'TSSPDCL', 'State', 'TSSPDCL/HT/CHP/2291', 365 * 2, 40, 'Mahesh (Site 1 head)', 'Not started', 0, 20, 'Sanction review in 40 days. Max demand last 3 months was 462 kVA (92% of 500) – consider a load increase with the renewal.', CK.elec('S1')],
+  ['RN-07', 'D-DGCA', 'S2', 'Drone type certificate', 'Drone type certificate – SK-Agri 10L (Site 2)', 'DGCA (Digital Sky)', 'Central', 'DGCA/TC/AGRI/0177', 365 * 2, 55, 'Arjun (Site 2 head)', 'Not started', 0, 30, 'Type certificate renewal in 55 days. Flight-test logs from Site 2 are up to date.', CK.elec('S2').slice(0, 0).concat([{ label: 'Flight-test logs (auto from Site 2)', ok: true }, { label: 'QA manual rev 4', ok: true }])],
+  ['RN-08', 'D-FIRE2', 'S2', 'Fire NOC', 'Fire NOC – Site 2', 'TN Fire & Rescue Services, Krishnagiri', 'State', 'TNFRS/KGI/NOC/2025/0638', 330, 34, 'Arjun (Site 2 head)', 'Not started', 15000, 30, 'Expires in 34 days. LiPo battery store was added in June – the NOC must now mention it, so a site inspection is likely. Start now.', CK.fire('S2')],
+  ['RN-09', 'D-PCB2', 'S2', 'Pollution Board CTO', 'TNPCB consent to operate (CTO) – Site 2', 'TN Pollution Control Board, Hosur', 'State', 'TNPCB/HSR/CTO/2024/2210', 365 * 2, 47, 'Arjun (Site 2 head)', 'Not started', 22000, 45, 'Expires in 47 days and TNPCB takes about 45. Stack monitoring report for last quarter is missing – asked the lab (simulated).', CK.pcb('S2')],
+  ['RN-10', 'D-TL2', 'S2', 'Trade licence', 'Trade licence – Site 2', 'Hosur City Municipal Corporation', 'Local', 'HCMC/TL/2026/4471', 335, 30, 'Padma (Accounts)', 'Not started', 6400, 15, 'Due on 31 Mar cycle, renews in 30 days. Property tax already paid.', CK.trade('S2')],
+  ['RN-11', 'D-EL2', 'S2', 'Electrical safety', 'Electrical safety certificate (CEIG) – Site 2', 'Chief Electrical Inspector, Tamil Nadu', 'State', 'CEIG/TN/HSR/88213', 365, 68, 'Arjun (Site 2 head)', 'Not started', 9500, 30, 'Due in 68 days. Annual inspection by the licensed contractor is not booked yet.', CK.elec('S2')],
+  ['RN-12', 'D-WM3', 'S3', 'Weights & measures', 'Weights & measures verification – Site 3', 'Legal Metrology, Telangana', 'State', 'LM/MDK/2025/3310', 365, 18, 'Prakash (Site 3 head)', 'Not started', 3000, 10, 'Expires in 18 days. 2 of 6 dispatch scales are past calibration – book the lab first.', CK.wm('S3')],
+  ['RN-13', 'D-LIFT1', 'S1', 'Lift licence', 'Goods lift licence – Site 1', 'Electrical Inspectorate, Telangana', 'State', 'EI/LIFT/HYD/7712', 365, 83, 'Mahesh (Site 1 head)', 'Not started', 2500, 20, 'Due in 83 days. Load test report is due with the AMC visit next month.', CK.lift('S1')],
+  ['RN-14', 'D-TL1', 'S1', 'Trade licence', 'Trade licence – Site 1', 'GHMC, Hyderabad', 'Local', 'GHMC/TL/CHP/2026/1092', 330, 35, 'Padma (Accounts)', 'Not started', 8200, 15, 'Renews in 35 days. Nothing missing.', CK.trade('S1')],
+  ['RN-15', 'D-CLRA2', 'S2', 'Contract labour licence (CLRA)', 'Contract labour licence (CLRA) – Site 2', 'Labour Dept, Tamil Nadu', 'State', 'CLRA/KGI/2025/0921', 300, 74, 'Sunitha (HR)', 'Not started', 6000, 30, 'Due in 74 days. Contract headcount rose to 58 – licence limit is 60, apply for 80 with the renewal.', CK.clra('S2')],
+  ['RN-16', 'D-FL2', 'S2', 'Factory licence', 'Factory licence – Site 2', 'Directorate of Industrial Safety & Health, TN', 'State', 'DISH/KGI/FL/30458', 365 * 2, 400, 'Arjun (Site 2 head)', 'Not started', 38000, 30, 'Valid for over a year. Nothing to do.', CK.factory('S2')],
+  ['RN-17', 'D-FL3', 'S3', 'Factory licence', 'Factory licence – Site 3', 'Factories Dept, Telangana', 'State', 'TS/MDK/FL/09931', 365 * 3, 190, 'Prakash (Site 3 head)', 'Not started', 30000, 30, 'Valid till next year.', CK.factory('S3')],
+  ['RN-18', 'D-OCC1', 'S1', 'Building / occupancy', 'Building occupancy certificate – Site 1', 'HMDA', 'Local', 'HMDA/OC/2019/6634', 365 * 7, 9999, 'Mahesh (Site 1 head)', 'Not started', 0, 0, 'Permanent – kept for tenders and fire NOC.', []],
+  ['RN-19', 'D-EL3', 'S3', 'Electrical safety', 'Electrical safety certificate – Site 3', 'Electrical Inspectorate, Telangana', 'State', 'EI/MDK/2025/4410', 300, 58, 'Prakash (Site 3 head)', 'Not started', 7000, 30, 'Due in 58 days. Inspection contractor booked for 20 Nov (simulated).', CK.elec('S3')],
 ];
+// Register entries add their certificates to the library, so tenders and checklists can reuse them.
+for (const x of SEEDS) if (!docById(x[1])) DOCS.push({ id: x[1], name: x[4], group: 'Approvals', site: x[2] === 'All' ? undefined : x[2], validTill: x[9] >= 9999 ? undefined : iso(x[9]) });
+for (const [i, n] of [['1', 'Site 1'], ['2', 'Site 2'], ['3', 'Site 3']]) {
+  for (const [k, l] of [['OCC', 'Building plan + occupancy certificate'], ['STAB', 'Structural stability certificate'], ['WM', 'Weights & measures verification'], ['LIFT', 'Lift licence'], ['EL', 'Electrical safety certificate'], ['TL', 'Trade licence'], ['FIRE', 'Fire NOC']])
+    if (!docById(`D-${k}${i}`) && !(k === 'LIFT' && i !== '1') && !(k === 'STAB' && i === '2')) DOCS.push({ id: `D-${k}${i}`, name: `${l} – ${n}`, group: 'Approvals', site: `S${i}` as SiteId, validTill: k === 'STAB' ? iso(200) : k === 'OCC' ? undefined : iso(150) });
+}
+export const RENEWALS: Renewal[] = SEEDS.map(([id, docId, site, kind, , authority, level, number, ago, days, owner, status, fee, leadDays, agentNote, checklist]) => {
+  if (days < 9999) { const d = docById(docId); if (d) d.validTill = iso(days); }
+  return { id, docId, site, kind, authority, level, number, issued: iso(Math.min(days, 365) - ago), owner, approver: 'Ranjith', status, fee, leadDays, agentNote, checklist };
+});
+/** Reminder ladder: who gets nudged at 90/60/30/7 days before expiry (all simulated). */
+export const LADDER = [
+  { at: 90, ch: 'In-app', to: 'owner' }, { at: 60, ch: 'WhatsApp', to: 'owner' }, { at: 30, ch: 'Email + WhatsApp', to: 'owner and Ranjith' }, { at: 7, ch: 'WhatsApp + call', to: 'Ranjith (escalated)' },
+] as const;
+export const remindersSent = (left: number) => LADDER.filter((l) => left <= l.at);
+export const siteMatch = (q: string): SiteId | undefined => /hosur|site ?2|drone/.test(q) ? 'S2' : /cherlapally|site ?1/.test(q) ? 'S1' : /medak|site ?3|packag/.test(q) ? 'S3' : undefined;
 
 /* ── 3. Tenders ── */
 export type TItem = { id: string; ask: string; docId?: string; answer?: string; hint?: string };
@@ -131,11 +172,11 @@ export const draftUpdate = (o: Order) => {
 };
 
 /* ── 6. Workforce (light) ── */
-export type Crew = { site: SiteId; ft: number; contract: number; presentFt: number; presentContract: number; agency: string; shifts: string };
+export type Crew = { site: SiteId; ft: number; contract: number; presentFt: number; presentContract: number; agency: string; shifts: string; daily: number; presentDaily: number; dailyRate: number; need?: string };
 export const CREW: Crew[] = [
-  { site: 'S1', ft: 32, contract: 70, presentFt: 30, presentContract: 64, agency: 'Sri Ganesh Manpower', shifts: '2 shifts' },
-  { site: 'S2', ft: 24, contract: 45, presentFt: 23, presentContract: 38, agency: 'Skyline Staffing', shifts: '1 shift' },
-  { site: 'S3', ft: 14, contract: 60, presentFt: 14, presentContract: 57, agency: 'Medak Labour Co-op', shifts: '3 shifts' },
+  { site: 'S1', ft: 32, contract: 70, presentFt: 30, presentContract: 64, agency: 'Sri Ganesh Manpower', shifts: '2 shifts', daily: 10, presentDaily: 10, dailyRate: 620 },
+  { site: 'S2', ft: 24, contract: 45, presentFt: 23, presentContract: 38, agency: 'Skyline Staffing', shifts: '1 shift', daily: 6, presentDaily: 5, dailyRate: 650 },
+  { site: 'S3', ft: 14, contract: 60, presentFt: 14, presentContract: 57, agency: 'Medak Labour Co-op', shifts: '3 shifts', daily: 20, presentDaily: 12, dailyRate: 600, need: '8 daily-wage loaders short for the 3 Pacific Pack trucks leaving at 6 pm' },
 ];
 
 /* ── Agents ── */
@@ -149,10 +190,10 @@ export const FX_AGENTS = [
 /* ── Store (localStorage; only decisions are stored, seed data stays in code) ── */
 export type FxState = {
   renewals: Record<string, Renewal['status']>; answers: Record<string, string>; packs: Record<string, 'approved'>;
-  groups: Record<string, { pick?: number; po?: string; sent?: boolean }>; updates: Record<string, string>; agentsOff: Record<string, boolean>;
+  groups: Record<string, { pick?: number; po?: string; sent?: boolean }>; updates: Record<string, string>; agentsOff: Record<string, boolean>; booked: Record<string, boolean>;
 };
 const KEY = 'bos-factory-v1';
-const blank = (): FxState => ({ renewals: {}, answers: {}, packs: {}, groups: {}, updates: {}, agentsOff: {} });
+const blank = (): FxState => ({ renewals: {}, answers: {}, packs: {}, groups: {}, updates: {}, agentsOff: {}, booked: {} });
 let st: FxState = (() => { try { return { ...blank(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return blank(); } })();
 const subs = new Set<() => void>();
 export const fx = { get: () => st, set: (fn: (d: FxState) => void) => { const d = structuredClone(st); fn(d); st = d; localStorage.setItem(KEY, JSON.stringify(st)); subs.forEach((f) => f()); }, reset: () => { st = blank(); localStorage.removeItem(KEY); subs.forEach((f) => f()); } };
@@ -160,7 +201,7 @@ export const useFx = () => useSyncExternalStore((f) => { subs.add(f); return () 
 
 /* ── Derived views (shared by screens and chat) ── */
 export const renewalStatus = (s: FxState, r: Renewal) => s.renewals[r.id] || r.status;
-export const renewalRows = (s: FxState) => RENEWALS.map((r) => { const d = docById(r.docId)!; const left = daysTo(d.validTill!); return { r, d, left, status: renewalStatus(s, r), late: left - r.leadDays < 0 }; }).sort((a, b) => a.left - b.left);
+export const renewalRows = (s: FxState) => RENEWALS.filter((r) => docById(r.docId)?.validTill).map((r) => { const d = docById(r.docId)!; const left = daysTo(d.validTill!); return { r, d, left, status: renewalStatus(s, r), late: left - r.leadDays < 0, overdue: left < 0, checklist: r.checklist.map((c) => { const cd = c.docId ? docById(c.docId) : undefined; return { ...c, have: c.docId ? !!cd && (!cd.validTill || daysTo(cd.validTill) > 0 || c.docId === r.docId) : !!c.ok }; }) }; }).sort((a, b) => a.left - b.left);
 export const tenderView = (s: FxState, t: Tender) => {
   const rows = t.items.map((it) => {
     const d = it.docId ? docById(it.docId) : undefined; const ans = s.answers[`${t.id}.${it.id}`];
