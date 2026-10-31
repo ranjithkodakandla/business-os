@@ -22,7 +22,7 @@ export const GROUP_LABEL: Record<Group, Record<Lang, string>> = {
 };
 export const GROUP_ICON: Record<Group, LucideIcon> = { Home: Home, Sell: Handshake, Make: Factory, Buy: Boxes, People: Users, Money: IndianRupee, Admin: Settings };
 const ORDER = ['home', 'approvals', 'notifications', 'alerts', 'inbox', 'sales', 'orders', 'dispatch', 'gst', 'bom', 'jobwork', 'qc', 'operations', 'procurement', 'suppliers', 'inventory', 'people', 'attendance', 'payroll', 'expenses', 'finance', 'collections', 'bank', 'match', 'reports', 'settings', 'billing', 'workspace', 'audit', 'documents', 'agents', 'integrations', 'setup'];
-export type NavItem = { key: string; to: string; icon: LucideIcon; group: Group; label: Record<Lang, string>; desc: string; sub?: [string, string][] };
+export type NavItem = { key: string; to: string; icon: LucideIcon; group: Group; label: Record<Lang, string>; desc: string; sub?: [string, string][]; fx?: boolean };
 const L = (en: string, hi: string, te: string) => ({ en, hi, te });
 export const MODULES: NavItem[] = [
   { key: 'home', to: '/', icon: Home, group: 'Home', label: L('Home', 'होम', 'హోమ్'), desc: 'Ask anything, see what needs you' },
@@ -63,16 +63,16 @@ export const MODULES: NavItem[] = [
 // Factory demo edition: only the screens that solve the factory owner's problems (see src/factory).
 const FX_MODULES: NavItem[] = [
   { key: 'home', to: '/', icon: Home, group: 'Home', label: L('Today', 'आज', 'ఈరోజు'), desc: 'What needs you today' },
-  { key: 'renewals', to: '/renewals', icon: FileCheck2, group: 'Admin', label: L('Licences & approvals', 'लाइसेंस', 'లైసెన్సులు'), desc: 'Licences, NOCs, certificates and expiry reminders' },
-  { key: 'tenders', to: '/tenders', icon: FolderOpen, group: 'Sell', label: L('Tenders & documents', 'टेंडर', 'టెండర్లు'), desc: 'Document library and tender packs' },
-  { key: 'purchasing', to: '/purchasing', icon: ShoppingCart, group: 'Buy', label: L('Purchasing', 'ख़रीद', 'కొనుగోళ్లు'), desc: 'Needs from all sites, consolidated' },
-  { key: 'customers', to: '/customers', icon: PackageCheck, group: 'Sell', label: L('Customer orders & QA', 'ग्राहक ऑर्डर', 'కస్టమర్ ఆర్డర్లు'), desc: 'Export orders, QA and customer updates' },
-  { key: 'workforce', to: '/workforce', icon: Users, group: 'People', label: L('Workforce', 'कर्मचारी', 'ఉద్యోగులు'), desc: 'Full-time and contract by site' },
+  { key: 'renewals', to: '/renewals', icon: FileCheck2, group: 'Admin', fx: true, label: L('Licences & approvals', 'लाइसेंस', 'లైసెన్సులు'), desc: 'Licences, NOCs, certificates and expiry reminders' },
+  { key: 'tenders', to: '/tenders', icon: FolderOpen, group: 'Admin', fx: true, label: L('Tenders & documents', 'टेंडर', 'టెండర్లు'), desc: 'Document library and tender packs' },
+  { key: 'purchasing', to: '/purchasing', icon: ShoppingCart, group: 'Buy', fx: true, label: L('Purchasing', 'ख़रीद', 'కొనుగోళ్లు'), desc: 'Needs from all sites, consolidated' },
+  { key: 'customers', to: '/customers', icon: PackageCheck, group: 'Sell', fx: true, label: L('Customer orders & QA', 'ग्राहक ऑर्डर', 'కస్టమర్ ఆర్డర్లు'), desc: 'Export orders, QA and customer updates' },
+  { key: 'workforce', to: '/workforce', icon: Users, group: 'People', fx: true, label: L('Workforce', 'कर्मचारी', 'ఉద్యోగులు'), desc: 'Full-time and contract by site' },
   { key: 'agents', to: '/agents', icon: Bot, group: 'Admin', label: L('Agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'What each AI agent may do' },
 ];
-/** Factory edition: the full main app stays reachable under More. */
-export const MAIN_MORE: NavItem[] = FACTORY ? MODULES.filter((m) => !['home', 'agents', 'setup', 'billing', 'workspace', 'platform'].includes(m.key)) : [];
-if (FACTORY) MODULES.splice(0, MODULES.length, ...FX_MODULES);
+/** Factory edition: the same pillars as the main app; factory screens are pinned first in their pillar and flagged fx (shown with a 'For you' badge). */
+export const MAIN_MORE: NavItem[] = [];
+if (FACTORY) { const main = MODULES.filter((m) => m.key !== 'home'); const fxm = FX_MODULES.filter((m) => m.key !== 'agents'); MODULES.splice(0, MODULES.length, fxm[0], ...fxm.slice(1), ...main); }
 else MODULES.sort((a, b) => (ORDER.indexOf(a.key) + 99) % 999 - (ORDER.indexOf(b.key) + 99) % 999);
 export const moduleByKey = (k: string) => MODULES.find((m) => m.key === k);
 export const moduleForPath = (p: string) => [...MODULES].filter((m) => m.to !== '/').sort((a, b) => b.to.length - a.to.length).find((m) => p.startsWith(m.to)) || (p === '/' ? MODULES[0] : undefined);

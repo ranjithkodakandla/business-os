@@ -55,7 +55,7 @@ const FX_ROUTES: [string, string, React.ReactNode][] = [
   ['/', 'home', <FxHome />], ['/tenders', 'tenders', <FxTenders />], ['/renewals', 'renewals', <FxRenewals />], ['/purchasing', 'purchasing', <FxPurchasing />],
   ['/customers', 'customers', <FxCustomers />], ['/workforce', 'workforce', <FxWorkforce />], ['/agents', 'agents', <FxAgents />],
 ];
-export const ROUTES = FACTORY ? [...FX_ROUTES, ...MAIN_ROUTES.filter(([path]) => path !== '/' && path !== '/agents')] : MAIN_ROUTES;
+export const ROUTES = FACTORY ? [...FX_ROUTES.filter(([path]) => path !== '/agents'), ...MAIN_ROUTES.filter(([path]) => path !== '/')] : MAIN_ROUTES;
 
 export function Restricted({ k }: { k: string }) {
   const { s } = useStore();

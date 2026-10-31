@@ -54,11 +54,7 @@ export function TopNav() {
     <div ref={ref} className="relative flex min-w-0 items-center" onKeyDown={(e) => { if (e.key === 'Escape') setOpen(null); }}>
       <MobileMenu />
       <nav aria-label="Main navigation" data-testid="topnav" className="no-scrollbar hidden lg:flex min-w-0 items-center gap-0.5 overflow-x-auto">
-        {FACTORY && MODULES.map((m) => { const Icon = m.icon; const active = isOn(m.to); return (
-          <NavLink key={m.key} to={m.to} data-menu={m.key} className={cx('relative flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-medium transition', active ? 'tab-active text-white' : 'text-slate-600 hover:bg-white/80 hover:text-slate-900')}>
-            <Icon size={15} strokeWidth={1.9} className="hidden xl:block" />{m.label[s.lang as 'en'] || m.label.en}</NavLink>); })}
-        {FACTORY && <button data-menu="more" aria-haspopup="true" onClick={() => setOpen(open === MORE ? null : MORE)} className={cx('relative flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-medium', MAIN_MORE.some((m) => isOn(m.to)) ? 'tab-active text-white' : 'text-slate-600 hover:bg-white/80')}>More<ChevronDown size={12} className="opacity-50" /></button>}
-        {!FACTORY && groups.map(([g, ms], i) => {
+        {groups.map(([g, ms], i) => {
           const Icon = GROUP_ICON[g]; const active = ms.some((m) => isOn(m.to)); const b = ms.reduce((a, m) => a + badgeOf(s, m.key), 0);
           return (
             <button key={g} data-menu={g} aria-haspopup="true" aria-expanded={open === g} onClick={() => setOpen(open === g ? null : g)} onKeyDown={(e) => onKey(e, i)}
@@ -69,17 +65,17 @@ export function TopNav() {
             </button>);
         })}
       </nav>
-      {open && (() => { const ms = FACTORY && open === MORE ? MAIN_MORE.filter((m) => can(s, m.key)) : groups.find(([g]) => g === open)?.[1] || []; return (
+      {open && (() => { const ms = groups.find(([g]) => g === open)?.[1] || []; return (
         <div role="menu" data-testid="mega-menu" data-group={open} className="glass-pop menu-in fixed left-1/2 top-[60px] z-50 flex w-[min(860px,calc(100vw-24px))] -translate-x-1/2 gap-3 rounded-3xl p-3">
           <div className="grid flex-1 grid-cols-2 gap-1.5">
             {ms.map((m) => { const b = badgeOf(s, m.key); return (
               <NavLink key={m.key} to={m.to} end={m.to === '/'} data-nav={m.key} role="menuitem" onClick={() => setOpen(null)}
                 className={({ isActive }) => cx('group flex items-start gap-3 rounded-2xl p-3 outline-none transition focus-visible:ring-2 focus-visible:ring-brand-400', isActive ? 'bg-brand-50/80 ring-1 ring-brand-200' : 'hover:bg-white hover:shadow-[0_8px_24px_-12px_rgb(99_102_241/.35)]')}>
                 <span className="icon-gloss grid h-9 w-9 shrink-0 place-items-center rounded-xl"><m.icon size={17} strokeWidth={1.9} /></span>
-                <span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-slate-900">{m.label[s.lang as 'en']}{b > 0 && <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-4 text-white">{b}</span>}</span><span className="block truncate text-[12px] text-slate-500">{m.desc}</span></span>
+                <span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-slate-900">{m.label[s.lang as 'en']}{m.fx && <span data-foryou className="rounded-full bg-brand-50 px-1.5 text-[10px] font-semibold leading-4 text-brand-700 ring-1 ring-brand-200">For you</span>}{b > 0 && <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-4 text-white">{b}</span>}</span><span className="block truncate text-[12px] text-slate-500">{m.desc}</span></span>
               </NavLink>); })}
           </div>
-          {open !== MORE && <Context g={open} s={s} />}
+          <Context g={open} s={s} />
         </div>); })()}
     </div>
   );
