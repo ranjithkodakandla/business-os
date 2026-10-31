@@ -1,3 +1,4 @@
+import { BRAND } from '../factory/edition';
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -164,7 +165,7 @@ function Topbar() {
   return (
     <header className="topbar sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between gap-3 px-3 md:px-5" data-testid="topbar">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="Home"><LogoMark size={30} /><span className="hidden text-[14px] font-semibold tracking-tight text-slate-900 2xl:inline">Aarohan OS</span></Link>
+        <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="Home"><LogoMark size={30} /><span className="hidden text-[14px] font-semibold tracking-tight text-slate-900 2xl:inline">{BRAND}</span></Link>
         <TopNav />
       </div>
       <div className="flex shrink-0 items-center gap-1.5">

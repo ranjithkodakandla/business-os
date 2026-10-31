@@ -5,6 +5,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY index.html vite.config.ts tsconfig.json tailwind.config.js postcss.config.js ./
 COPY src ./src
+ARG VITE_EDITION=
+ENV VITE_EDITION=$VITE_EDITION
 RUN npm run build
 
 FROM node:22-slim

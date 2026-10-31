@@ -19,6 +19,9 @@ import { live, Offline, type Turn, type Intent } from '../lib/live';
 import { bizContext } from '../lib/bizContext';
 import { HANDOFFS, runApproval, sendPO, confirmSplit, reminder1048, chaseJobWorker, startSourcing, startSprint } from '../lib/actions';
 import { cx, Button } from './ui';
+import { FACTORY } from '../factory/edition';
+import { factoryRespond, factoryContext } from '../factory/chat';
+import { runFx } from '../factory/actions';
 
 const ID_RE = /(SO-\d{4}|PR-\d{3}|PO-\d{4}|INV-\d{4}|WO-\d{4}|DC-JW-\d{4}|RM-A17|PB-\d{4}|OP-\d{3}|SRC-\d{4})/g;
 const ID_ONE = new RegExp('^' + ID_RE.source + '$');
@@ -126,6 +129,7 @@ function Answer({ r, msgId }: { r: Resp; msgId: number }) {
   const [used, setUsed] = useState<Record<string, boolean>>({});
   const started = (k: string) => (k === 'start-sourcing' && ctx.s.sourcing.status !== 'idle') || (k.startsWith('start-sprint') && ctx.s.sprint.status !== 'idle');
   const act = (kind: string) => {
+    if (kind.startsWith('fx:')) return runFx(ctx, kind);
     if (kind.startsWith('open:')) return nav(kind.slice(5));
     if (kind.startsWith('ask:')) return window.dispatchEvent(new CustomEvent('bw-ask', { detail: kind.slice(4) }));
     if (kind.startsWith('handoff-')) {
@@ -186,7 +190,7 @@ export function useChat() {
     // and the answer is structured UI that ends in a confirm card before anything changes.
     // Any question about business data → a visual card (KPIs, charts, tables, status items), never bullet text.
     // Conversation context: a reply to the card or question just above is an ANSWER, not a new question – no instant keyword card may hijack it.
-    { const p1 = asAgent(() => p1Answer(t, (k) => can(s, k))); if (p1) { put0({ title: '', blocks: [{ type: 'data', r: p1 }], sources: [], actions: [], links: [] }); return true; } } // P1/P2 module commands (BOM, QC, bank/TDS, expenses, dispatch, alerts, documents)
+    if (!FACTORY) { const p1 = asAgent(() => p1Answer(t, (k) => can(s, k))); if (p1) { put0({ title: '', blocks: [{ type: 'data', r: p1 }], sources: [], actions: [], links: [] }); return true; } } // P1/P2 module commands (BOM, QC, bank/TDS, expenses, dispatch, alerts, documents)
     const lastAi = [...s.chat].reverse().find((m) => m.role === 'system' && m.resp);
     const lastIdx = lastAi ? s.chat.indexOf(lastAi) : -1;
     const pendIdx = lastAi?.resp ? lastAi.resp.blocks.findIndex((b) => b.type === 'data' && 'status' in b.r && b.r.status === 'pending' && (b.r.kind === 'add_person' || b.r.kind === 'add_supplier')) : -1;
@@ -194,6 +198,8 @@ export function useChat() {
     const answers = looksLikeAnswers(t);
     const fresh = !answers && /^(show|list|add|update|change|create|hire|onboard|what|who|how|why|when|which|where|hi|hey|hello|need|i need|mark|received|get|find|give)\b/i.test(t);
     let followUp = false;
+    // Factory edition: answer from factory data with one-tap proposals; anything else goes to the AI with the factory context (no main-app cards).
+    if (FACTORY) { const fr = factoryRespond(t); if (fr) setTimeout(() => put0(fr), 400); else normal(); return true; }
     const putMod = (c: ModCard) => put0({ title: '', blocks: [{ type: 'mod', c }], sources: [], actions: [], links: [] });
     // A pending AI action card (payroll, users, approvals, GST, leave…) takes the follow-up as its answer.
     const modPend = lastAi?.resp ? lastAi.resp.blocks.findIndex((b) => b.type === 'mod' && b.c.status === 'pending' && b.c.kind === 'action') : -1;
@@ -269,7 +275,7 @@ export function useChat() {
     if (!followUp && !isLive && !generic) { setTimeout(() => put(r), 450); return; } // a known business question: answer from the data
     // Everything else goes through the AI first: small talk, questions, vague and clear sourcing needs.
     const LN = { en: '', hi: 'Hindi (Devanagari script)', te: 'Telugu (Telugu script)' }[s.lang];
-    const context = bizContext(s) + `\nSigned-in user: ${ROLE_USER[roleOf(s)].name}, role ${roleOf(s)}. They may only see: ${MODULES.filter((m) => can(s, m.key)).map((m) => m.label.en).join(', ')}. If asked about anything else, reply: "Not in your access – ask an admin."` + (LN ? `\nIMPORTANT: Reply in ${LN}.` : '');
+    const context = (FACTORY ? factoryContext() : bizContext(s)) + `\nSigned-in user: ${ROLE_USER[roleOf(s)].name}, role ${roleOf(s)}. They may only see: ${MODULES.filter((m) => can(s, m.key)).map((m) => m.label.en).join(', ')}. If asked about anything else, reply: "Not in your access – ask an admin."` + (LN ? `\nIMPORTANT: Reply in ${LN}.` : '');
     const history = s.chat.slice(-12).flatMap((m): Turn[] => m.role === 'user' ? [{ role: 'user' as const, text: m.text }] : m.resp ? [{ role: 'ai' as const, text: [m.resp.title, ...m.resp.blocks.map((b) => ('text' in b ? b.text : b.type === 'data' ? b.r.headline : b.type === 'mod' ? b.c.headline + (b.c.fields ? ' Fields: ' + b.c.fields.map((f) => `${f.label}=${f.value || '?'}`).join(', ') : '') : b.type === 'ask' ? 'Asked: ' + b.items.map((x) => x.q).join(' / ') : ''))].filter(Boolean).join(' ').slice(0, 300) }] : []);
     // If the connection drops, keep the message and try again once it's back (the Reconnecting pill shows meanwhile).
     const assist = async (): Promise<Intent> => { for (let k = 0; ; k++) { try { return await live.assist(t, context, history); } catch (e) { if (!(e instanceof Offline) || k >= 20) throw e; await new Promise((r) => setTimeout(r, 3000)); } } };

@@ -30,8 +30,11 @@ import MatchPage from '../alerts/MatchPage';
 import { Production, Quality, BankTds, Expenses, DispatchPage, Notifications, Documents } from '../pages/P1Modules';
 import { SettingsPage, PayrollPage, InboxPage, GstPage, AttendancePage, AuditPage } from '../pages/p0';
 
+import { FACTORY } from '../factory/edition';
+import { FxHome, FxTenders, FxRenewals, FxPurchasing, FxCustomers, FxWorkforce, FxAgents } from '../factory/pages';
+
 /** [path, module key (for RBAC), element]. Add new module pages here. */
-export const ROUTES: [string, string, React.ReactNode][] = [
+const MAIN_ROUTES: [string, string, React.ReactNode][] = [
   ['/', 'home', <Home />], ['/approvals', 'approvals', <Approvals />],
   ['/sales', 'sales', <SalesList />], ['/sales/opportunity/:id', 'sales', <OpportunityDetail />], ['/sales/customer/:id', 'sales', <CustomerDetail />],
   ['/orders', 'orders', <OrdersList />], ['/orders/:id', 'orders', <OrderDetail />],
@@ -48,6 +51,11 @@ export const ROUTES: [string, string, React.ReactNode][] = [
   ['/production', 'bom', <Production />], ['/quality', 'qc', <Quality />], ['/bank-tds', 'bank', <BankTds />], ['/expenses', 'expenses', <Expenses />],
   ['/dispatch', 'dispatch', <DispatchPage />], ['/notifications', 'notifications', <Notifications />], ['/documents', 'documents', <Documents />],
 ];
+const FX_ROUTES: [string, string, React.ReactNode][] = [
+  ['/', 'home', <FxHome />], ['/tenders', 'tenders', <FxTenders />], ['/renewals', 'renewals', <FxRenewals />], ['/purchasing', 'purchasing', <FxPurchasing />],
+  ['/customers', 'customers', <FxCustomers />], ['/workforce', 'workforce', <FxWorkforce />], ['/agents', 'agents', <FxAgents />],
+];
+export const ROUTES = FACTORY ? FX_ROUTES : MAIN_ROUTES;
 
 export function Restricted({ k }: { k: string }) {
   const { s } = useStore();

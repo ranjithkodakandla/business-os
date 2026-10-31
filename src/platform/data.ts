@@ -1,3 +1,4 @@
+import { FACTORY } from '../factory/edition';
 /** Platform (SaaS vendor) demo data: tenants, plans, billing, support, infra. Browser-session only. */
 import { MODULES } from '../lib/nav';
 import type { Rollout } from './rollout';
@@ -57,9 +58,9 @@ export const seedPlat = (): PlatState => {
   ];
   const H = (text: string, at = '12 Oct 2026') => ({ at, by: 'Ranjith Kumar', text });
   const rollout: Record<string, Rollout> = Object.fromEntries(FLAG_KEYS.map((k) => [k, { stage: 'GA', alpha: [], beta: [], pct: 100, killed: false, history: [H('Created · GA', '01 Apr 2025')] } as Rollout]));
-  Object.assign(rollout.agents, { stage: 'Beta', beta: ['t-kaveri', 't-gulf', 't-deccan'], history: [H('Beta · opt-ins Kaveri, Gulf Precision, Deccan'), H('Alpha → Kaveri Pumps', '20 Sep 2026'), H('Created · Internal', '02 Sep 2026')] });
-  Object.assign(rollout.bank, { stage: 'Gradual', pct: 40, history: [H('Gradual 40%'), H('Gradual 20%', '01 Oct 2026'), H('Created · Internal', '15 Aug 2026')] });
-  Object.assign(rollout.qc, { stage: 'Alpha', alpha: ['t-kaveri', 't-narmada'], history: [H('Alpha → Kaveri Pumps, Narmada Textiles'), H('Created · Internal', '05 Oct 2026')] });
+  if (rollout.agents && !FACTORY) Object.assign(rollout.agents, { stage: 'Beta', beta: ['t-kaveri', 't-gulf', 't-deccan'], history: [H('Beta · opt-ins Kaveri, Gulf Precision, Deccan'), H('Alpha → Kaveri Pumps', '20 Sep 2026'), H('Created · Internal', '02 Sep 2026')] });
+  if (rollout.bank) Object.assign(rollout.bank, { stage: 'Gradual', pct: 40, history: [H('Gradual 40%'), H('Gradual 20%', '01 Oct 2026'), H('Created · Internal', '15 Aug 2026')] });
+  if (rollout.qc) Object.assign(rollout.qc, { stage: 'Alpha', alpha: ['t-kaveri', 't-narmada'], history: [H('Alpha → Kaveri Pumps, Narmada Textiles'), H('Created · Internal', '05 Oct 2026')] });
   return { tenants, flags, invoices, tickets, rollout, log: [
     { at: '18:42', tenant: 't-aarohan', text: 'Riya Reddy approved PR-208 (₹3.8 lakh)' }, { at: '17:10', tenant: 't-kaveri', text: '12 users logged in · sourcing agent ran 3 RFQs' },
     { at: '15:55', tenant: 't-deccan', text: 'Payroll quote requested via support' }, { at: '12:30', tenant: 't-sahyadri', text: 'Payment retry failed (card declined)' },

@@ -1,3 +1,4 @@
+import { BRAND, FACTORY } from '../factory/edition';
 /** Top menu bar: the 7 business-flow groups from lib/nav.ts as tabs with glossy mega-menus. Role-filtered; keyboard accessible. */
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -52,7 +53,10 @@ export function TopNav() {
     <div ref={ref} className="relative flex min-w-0 items-center" onKeyDown={(e) => { if (e.key === 'Escape') setOpen(null); }}>
       <MobileMenu />
       <nav aria-label="Main navigation" data-testid="topnav" className="no-scrollbar hidden lg:flex min-w-0 items-center gap-0.5 overflow-x-auto">
-        {groups.map(([g, ms], i) => {
+        {FACTORY && MODULES.map((m) => { const Icon = m.icon; const active = isOn(m.to); return (
+          <NavLink key={m.key} to={m.to} data-menu={m.key} className={cx('relative flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-medium transition', active ? 'tab-active text-white' : 'text-slate-600 hover:bg-white/80 hover:text-slate-900')}>
+            <Icon size={15} strokeWidth={1.9} className="hidden xl:block" />{m.label[s.lang as 'en'] || m.label.en}</NavLink>); })}
+        {!FACTORY && groups.map(([g, ms], i) => {
           const Icon = GROUP_ICON[g]; const active = ms.some((m) => isOn(m.to)); const b = ms.reduce((a, m) => a + badgeOf(s, m.key), 0);
           return (
             <button key={g} data-menu={g} aria-haspopup="true" aria-expanded={open === g} onClick={() => setOpen(open === g ? null : g)} onKeyDown={(e) => onKey(e, i)}
@@ -94,7 +98,7 @@ function MobileMenu() {
       <div className="fly-backdrop absolute inset-0 bg-slate-900/35 backdrop-blur-sm" onClick={() => setOpen(false)} />
       <aside data-testid="mobile-drawer" className="drawer-in absolute inset-y-0 left-0 flex w-[min(340px,88vw)] flex-col bg-white/95 shadow-2xl backdrop-blur-xl" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-          <div className="leading-tight"><div className="text-[15px] font-semibold text-slate-900">Aarohan OS</div><div className="text-[12px] text-slate-500">{ROLE_USER[roleOf(s)].name} · {roleOf(s)}</div></div>
+          <div className="leading-tight"><div className="text-[15px] font-semibold text-slate-900">{BRAND}</div><div className="text-[12px] text-slate-500">{ROLE_USER[roleOf(s)].name} · {roleOf(s)}</div></div>
           <button aria-label="Close menu" onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X size={20} /></button>
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-2" data-testid="mobile-nav">

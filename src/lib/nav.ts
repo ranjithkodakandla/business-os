@@ -12,6 +12,7 @@ import {
   Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen, CreditCard, BellRing, GitCompareArrows,
 } from 'lucide-react';
 import type { Lang } from './i18n';
+import { FACTORY } from '../factory/edition';
 export type Group = 'Home' | 'Sell' | 'Make' | 'Buy' | 'People' | 'Money' | 'Admin';
 export const GROUPS: Group[] = ['Home', 'Sell', 'Make', 'Buy', 'People', 'Money', 'Admin'];
 export const GROUP_LABEL: Record<Group, Record<Lang, string>> = {
@@ -59,6 +60,17 @@ export const MODULES: NavItem[] = [
   { key: 'integrations', to: '/integrations', icon: Plug, group: 'Admin', label: L('Connected apps', 'जुड़े ऐप', 'అనుసంధాన యాప్‌లు'), desc: 'Tally, WhatsApp, Gmail, GST' },
   { key: 'setup', to: '/setup', icon: Sparkles, group: 'Admin', label: L('Quick setup', 'आसान सेटअप', 'సులభ సెటప్'), desc: 'Guided company setup' },
 ];
-MODULES.sort((a, b) => (ORDER.indexOf(a.key) + 99) % 999 - (ORDER.indexOf(b.key) + 99) % 999);
+// Factory demo edition: only the screens that solve the factory owner's problems (see src/factory).
+const FX_MODULES: NavItem[] = [
+  { key: 'home', to: '/', icon: Home, group: 'Home', label: L('Today', 'आज', 'ఈరోజు'), desc: 'What needs you today' },
+  { key: 'tenders', to: '/tenders', icon: FolderOpen, group: 'Sell', label: L('Tenders & documents', 'टेंडर', 'టెండర్లు'), desc: 'Document library and tender packs' },
+  { key: 'renewals', to: '/renewals', icon: FileCheck2, group: 'Admin', label: L('Approvals & renewals', 'लाइसेंस', 'లైసెన్సులు'), desc: 'Licences, NOCs, certificates and expiry reminders' },
+  { key: 'purchasing', to: '/purchasing', icon: ShoppingCart, group: 'Buy', label: L('Purchasing', 'ख़रीद', 'కొనుగోళ్లు'), desc: 'Needs from all sites, consolidated' },
+  { key: 'customers', to: '/customers', icon: PackageCheck, group: 'Sell', label: L('Customer orders & QA', 'ग्राहक ऑर्डर', 'కస్టమర్ ఆర్డర్లు'), desc: 'Export orders, QA and customer updates' },
+  { key: 'workforce', to: '/workforce', icon: Users, group: 'People', label: L('Workforce', 'कर्मचारी', 'ఉద్యోగులు'), desc: 'Full-time and contract by site' },
+  { key: 'agents', to: '/agents', icon: Bot, group: 'Admin', label: L('Agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'What each AI agent may do' },
+];
+if (FACTORY) MODULES.splice(0, MODULES.length, ...FX_MODULES);
+else MODULES.sort((a, b) => (ORDER.indexOf(a.key) + 99) % 999 - (ORDER.indexOf(b.key) + 99) % 999);
 export const moduleByKey = (k: string) => MODULES.find((m) => m.key === k);
 export const moduleForPath = (p: string) => [...MODULES].filter((m) => m.to !== '/').sort((a, b) => b.to.length - a.to.length).find((m) => p.startsWith(m.to)) || (p === '/' ? MODULES[0] : undefined);

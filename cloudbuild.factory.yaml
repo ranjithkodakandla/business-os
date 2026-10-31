@@ -1,0 +1,5 @@
+# Builds the factory demo edition image (VITE_EDITION=factory). Used for the business-os-factory service only.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '--build-arg', 'VITE_EDITION=factory', '-t', '$_IMAGE', '.']
+images: ['$_IMAGE']

@@ -4,9 +4,14 @@ import { llmJson } from './llm';
 
 export type Intent = { kind: 'greeting' | 'question' | 'vague' | 'sourcing'; reply: string; questions: { q: string; options: string[] }[]; parser: 'llm' | 'rules' };
 
-const APP = `You are the AI assistant inside "Business Workspace", an AI operations app for Indian MSME manufacturers. The demo company is Aarohan Industries (Hyderabad). You are chatting with the owner's side; the person typing is Ranjith – you may greet him by name.
+const MAIN_APP = `You are the AI assistant inside "Business Workspace", an AI operations app for Indian MSME manufacturers. The demo company is Aarohan Industries (Hyderabad). You are chatting with the owner's side; the person typing is Ranjith – you may greet him by name.
 Talk like a warm, natural, witty chat assistant (like ChatGPT): vary your wording, answer jokes, thanks and off-topic chat naturally, understand Hinglish/Telugu-English, and gently steer back to how you can help the business.
 Modules: Sourcing (asks 5 suppliers by email, WhatsApp and AI phone call, compares quotes, recommends one; the owner approves every send), Sales & CRM, Orders, Procurement, Inventory, Operations, Job work, People & HR, Finance (cash, receivables, GST), Approvals inbox, Reports, Connected apps (Tally, Zoho, WhatsApp, Gmail).`;
+// Factory demo edition (BOS_EDITION=factory): same assistant, scoped to the factory owner's screens.
+const FACTORY_APP = `You are the AI assistant inside "Shakti OS", an AI operations app for Indian MSME manufacturers. The demo company is Shakti Electro-Pack Pvt Ltd (fictional): 3 sites in Telangana making RF/communication modules, drones and packaging material, about 70 full-time and 175 contract workers, exporting to Germany, UAE and USA. You are chatting with the owner, Ranjith.
+Talk like a warm, natural, plain-spoken chat assistant; understand Hinglish/Telugu-English; keep answers short and practical.
+Screens: Today (what needs the owner), Tenders & documents (document library reused in every tender pack), Approvals & renewals (licences, NOCs, certificates, expiry reminders, approver flow), Purchasing (needs from all sites consolidated, supplier comparison, POs after approval), Customer orders & QA (floor updates, QA, customer email threads, AI-drafted updates), Workforce (full-time vs contract by site), Agents. Every send is simulated and needs the owner's OK.`;
+const APP = process.env.BOS_EDITION === 'factory' ? FACTORY_APP : MAIN_APP;
 
 const GREET = /^(hi+|hey+|hello+|hii+|yo|hola|namaste|namaskar|good (morning|afternoon|evening)|thanks?( you)?|ok(ay)?|cool|hey there|hi there|sup|wassup)[\s!.,?]*(hi+|hey+|there|team|bot|ai)?[\s!.,?]*$/i;
 const ASKS_APP = /\b(what can you do|who are you|help|how (does|do) (this|it|you) work|what is this)\b/i;
@@ -67,7 +72,7 @@ Always answer the NEW message (never re-answer an earlier one). If the owner rep
   let ai = await llmJson<Out>(system, convo, { timeoutMs: 12000, maxTokens: 500 });
   if (process.env.ASSIST_DEBUG) console.log("[assist raw]", JSON.stringify(ai));
   const DECLINES = [
-    "That's outside what I can help with here – I'm built for Aarohan's sourcing, inventory, orders, approvals and finance. Want me to check low stock or draft a supplier enquiry?",
+    `That's outside what I can help with here – I'm built for ${process.env.BOS_EDITION === 'factory' ? 'Shakti' : 'Aarohan'}'s business. Ask me about approvals, orders, purchases or your team.`,
     "I'll have to pass on that one – it's not something this workspace covers. I can help with sourcing, stock, orders, approvals or your finance view. What do you need?",
     "Sorry, that's beyond this app's scope. I'm here for sourcing, inventory, orders and finance – shall I compare supplier quotes or check pending approvals?",
   ];
