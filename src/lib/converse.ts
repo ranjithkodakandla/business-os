@@ -16,7 +16,8 @@ export type Block =
   | { type: 'live'; text: string }
   | { type: 'mod'; c: import('./modAgent').ModCard }
   | { type: 'ask'; items: { q: string; options: string[] }[] }
-  | { type: 'data'; r: import('./dataAgent').Result };
+  | { type: 'data'; r: import('./dataAgent').Result }
+  | { type: 'fx'; c: import('../factory/brain').FxC };
 // (live outreach cards are separate chat messages – see OutreachLive)
 export type Action = { label: string; kind: string; primary?: boolean };
 export type Resp = { title: string; blocks: Block[]; sources: { label: string; to: string }[]; actions: Action[]; links: { label: string; to: string }[] };

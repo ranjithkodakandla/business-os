@@ -68,7 +68,7 @@ const FX_MODULES: NavItem[] = [
   { key: 'purchasing', to: '/purchasing', icon: ShoppingCart, group: 'Buy', fx: true, label: L('Purchasing', 'ख़रीद', 'కొనుగోళ్లు'), desc: 'Needs from all sites, consolidated' },
   { key: 'customers', to: '/customers', icon: PackageCheck, group: 'Sell', fx: true, label: L('Customer orders & QA', 'ग्राहक ऑर्डर', 'కస్టమర్ ఆర్డర్లు'), desc: 'Export orders, QA and customer updates' },
   { key: 'workforce', to: '/workforce', icon: Users, group: 'People', fx: true, label: L('Workforce', 'कर्मचारी', 'ఉద్యోగులు'), desc: 'Full-time and contract by site' },
-  { key: 'agents', to: '/agents', icon: Bot, group: 'Admin', label: L('Agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'What each AI agent may do' },
+  { key: 'fxagents', to: '/factory-agents', icon: Bot, group: 'Admin', fx: true, label: L('Factory agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'Sourcing, renewals, tenders and customer-update agents' },
 ];
 /** Factory edition: the same pillars as the main app; factory screens are pinned first in their pillar and flagged fx (shown with a 'For you' badge). */
 export const MAIN_MORE: NavItem[] = [];

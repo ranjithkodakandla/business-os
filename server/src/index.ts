@@ -8,6 +8,7 @@ import { saveSecrets } from './secrets';
 import { db, save, analyze, createRun, findRun, findOut, addReply, sendCounter, sendAnswer, draftPo, ranked, summarize, CALL_QUESTIONS, type Out } from './agent';
 import { checkLlm, llmModel, llmBase } from './llm';
 import { classify } from './assist';
+import { mountFx } from './fx';
 import { dataIntent, dataView } from './intent';
 import { pollEmail, resetEmailCursor, checkEmail, isAgentText, sendsInFlight } from './channels/email';
 import { cleanReply } from './parse';
@@ -61,6 +62,7 @@ app.post('/api/runs', async (req, res) => {
   } catch (e) { const st = (e as any).status; if (st === 400) return res.status(400).json({ error: (e as Error).message }); throw e; }
 });
 const turns = (h: unknown) => (Array.isArray(h) ? h : []).filter((x) => x && typeof x.text === 'string').slice(-10).map((x) => ({ role: x.role === 'user' ? 'user' as const : 'ai' as const, text: String(x.text).slice(0, 400) }));
+mountFx(app);
 app.post('/api/assist', async (req, res) => {
   const text = String(req.body.text || '').slice(0, 500);
   res.json(await classify(text, String(req.body.context || ''), turns(req.body.history)));

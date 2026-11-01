@@ -1,21 +1,22 @@
 /** One-tap agent proposals. Every send is simulated – nothing leaves the demo. */
 import type { useStore } from '../lib/store';
-import { fx, RENEWALS, docById, TENDERS, GROUPS, ORDERS, draftUpdate, groupTotal, groupState, inr, tenderView } from './data';
+import { MONEY } from './more';
+import { fx, RENEWALS, allRenewals, docById, TENDERS, GROUPS, ORDERS, draftUpdate, groupTotal, groupState, inr, tenderView } from './data';
 type Ctx = ReturnType<typeof useStore>;
 const audit = (ctx: Ctx, module: string, text: string, record?: string) => ctx.update(() => {}, text, { module, record, agent: true });
 
 let poSeq = 1180;
 export function approveRenewal(ctx: Ctx, id: string) {
-  const r = RENEWALS.find((x) => x.id === id); if (!r) return;
+  const r = allRenewals(fx.get()).find((x) => x.id === id); if (!r) return; const dn = (r.doc || docById(r.docId))!.name;
   fx.set((d) => { d.renewals[id] = 'Filed – awaiting authority'; });
-  audit(ctx, 'compliance', `Approved renewal ${id} – ${docById(r.docId)!.name} filed with ${r.authority} (simulated)`, id);
-  ctx.toast(`${docById(r.docId)!.name}: renewal approved and filed (simulated). Reminder set to chase in 7 days.`, 'green');
+  audit(ctx, 'compliance', `Approved renewal ${id} – ${dn} filed with ${r.authority} (simulated)`, id);
+  ctx.toast(`${dn}: renewal approved and filed (simulated). Reminder set to chase in 7 days.`, 'green');
 }
 export function preparePack(ctx: Ctx, id: string) {
-  const r = RENEWALS.find((x) => x.id === id); if (!r) return;
+  const r = allRenewals(fx.get()).find((x) => x.id === id); if (!r) return; const dn = (r.doc || docById(r.docId))!.name;
   fx.set((d) => { d.renewals[id] = 'Pack ready – needs your OK'; });
-  audit(ctx, 'compliance', `Renewals agent drafted the renewal pack for ${docById(r.docId)!.name} from the document library`, id);
-  ctx.toast(`Renewal pack drafted for ${docById(r.docId)!.name} – ${r.checklist.length} documents pulled from your library. Tap "Approve & file" when you are happy.`, 'blue');
+  audit(ctx, 'compliance', `Renewals agent drafted the renewal pack for ${dn} from the document library`, id);
+  ctx.toast(`Renewal pack drafted for ${dn} – ${r.checklist.length} documents pulled from your library. Tap "Approve & file" when you are happy.`, 'blue');
 }
 export function approvePack(ctx: Ctx, id: string) {
   const t = TENDERS.find((x) => x.id === id); if (!t) return;
@@ -48,4 +49,7 @@ export function runFx(ctx: Ctx, kind: string) {
   if (what === 'pack') return approvePack(ctx, id);
   if (what === 'po') return approvePO(ctx, id);
   if (what === 'update') return sendUpdate(ctx, id);
+  if (what === 'remind') { const r = MONEY.receivables[+id]; if (!r) return; ctx.openDraft({ title: `Payment reminder – ${r.who.split(' (')[0]}`, channel: 'Email', to: r.who, toDetail: 'Simulated – nothing is sent', approveLabel: 'Approve & send',
+    body: `Dear team,\n\nOur invoice for ${inr(r.amt)} is now ${r.days} days old. ${r.note}.\nPlease share the payment date, or let us know if anything is holding it up.\n\nRegards,\nAccounts, Shakti Electro-Pack`,
+    onApprove: () => { audit(ctx, 'finance', `Payment reminder sent to ${r.who} for ${inr(r.amt)} (simulated)`); ctx.toast('Reminder marked as sent (simulated)', 'green'); } }); }
 }

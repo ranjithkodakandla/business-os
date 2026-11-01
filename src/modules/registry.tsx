@@ -53,7 +53,7 @@ const MAIN_ROUTES: [string, string, React.ReactNode][] = [
 ];
 const FX_ROUTES: [string, string, React.ReactNode][] = [
   ['/', 'home', <FxHome />], ['/tenders', 'tenders', <FxTenders />], ['/renewals', 'renewals', <FxRenewals />], ['/purchasing', 'purchasing', <FxPurchasing />],
-  ['/customers', 'customers', <FxCustomers />], ['/workforce', 'workforce', <FxWorkforce />], ['/agents', 'agents', <FxAgents />],
+  ['/customers', 'customers', <FxCustomers />], ['/workforce', 'workforce', <FxWorkforce />], ['/factory-agents', 'fxagents', <FxAgents />],
 ];
 export const ROUTES = FACTORY ? [...FX_ROUTES.filter(([path]) => path !== '/agents'), ...MAIN_ROUTES.filter(([path]) => path !== '/')] : MAIN_ROUTES;
 

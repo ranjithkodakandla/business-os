@@ -1,3 +1,6 @@
+import { SAMPLES, sourcingCard, type FxC } from './brain';
+import { FxCard } from './cards';
+import { Paperclip } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Sparkles, SquarePen, FileCheck2, ShieldAlert, ShoppingCart, Globe2, Users, CheckCircle2, Bot, RotateCcw } from 'lucide-react';
@@ -24,7 +27,7 @@ export function FxHome() {
       </div>
       <div className="flex-1 pb-6"><Thread thinking={chat.thinking} stage={chat.stage} /></div>
       <div className="sticky bottom-0 z-20 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)] to-transparent pb-4 pt-6">
-        <Composer chat={{ ...chat, ask }} placeholder="Ask about approvals, tenders, purchases, customers…" />
+        <Composer chat={chat} placeholder="Ask about approvals, tenders, purchases, customers…" />
         <div className="mt-2 text-center text-[11.5px] text-slate-400">Nothing is sent to a customer, supplier or authority without your OK. All sends in this demo are simulated.</div>
       </div>
     </div>
@@ -50,8 +53,9 @@ export function FxHome() {
       <section className="mx-auto max-w-[820px] pb-2 pt-6 text-center">
         <h1 className="text-[30px] font-semibold tracking-tight text-slate-900 md:text-[36px]">Good day, <span className="text-grad">Ranjith</span></h1>
         <p className="mt-1 text-[15px] text-slate-500">{COMPANY.name} · 3 sites · {rows.length} things need you today</p>
-        <div className="mt-5 text-left"><Composer chat={{ ...chat, ask }} big placeholder="Which approvals expire this month?" footer={<span className="inline-flex items-center gap-1.5"><Sparkles size={12} className="text-brand-500" />Knows your licences, tenders, site purchases, export orders and people</span>} /></div>
+        <div className="mt-5 text-left"><Composer chat={{ ...chat, ask, attach: chat.attach && ((f: File) => { setParams({ chat: '1' }); return chat.attach!(f); }) }} big placeholder="Which approvals expire this month?" footer={<span className="inline-flex items-center gap-1.5"><Sparkles size={12} className="text-brand-500" />Knows your licences, tenders, site purchases, export orders and people</span>} /></div>
         <div className="mt-3 flex flex-wrap justify-center gap-2">{CHIPS.map((c) => <button key={c} onClick={() => ask(c)} className="chip-gloss rounded-full px-3 py-1.5 text-[13px] text-slate-600 hover:text-brand-700">{c}</button>)}</div>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-[12.5px] text-slate-500" data-testid="samples"><Paperclip size={13} />Try an upload:{SAMPLES.map((x) => <button key={x.file} data-sample={x.file} onClick={() => { setParams({ chat: '1' }); window.dispatchEvent(new CustomEvent('fx-sample', { detail: x.file })); }} className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 hover:border-brand-400 hover:text-brand-700">{x.label}</button>)}</div>
       </section>
       <section className="mx-auto mt-6 max-w-[820px]">
         <div className="tile-gloss rounded-3xl p-4" data-testid="needs-today">
@@ -221,11 +225,21 @@ export function FxWorkforce() {
 }
 
 /* ───────── Agents ───────── */
+function SourcingAgent() {
+  const [q, setQ] = useState('find suppliers for 5000 corrugated boxes 5-ply'); const [c, setC] = useState<FxC | null>(null); const [none, setNone] = useState(false);
+  const run = () => { const r = sourcingCard(q); setC(r); setNone(!r); };
+  return <Card title="Sourcing agent" subtitle="Tell it what you need – it compares suppliers, picks one and drafts the RFQ or PO for your OK.">
+    <form data-testid="sourcing-agent" onSubmit={(e) => { e.preventDefault(); run(); }} className="flex gap-2"><input value={q} onChange={(e) => setQ(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-[14px]" placeholder="e.g. 2000 SMA connectors" /><Button variant="primary" type="submit">Find suppliers</Button></form>
+    {none && <p className="mt-2 text-[13px] text-amber-700">No demo suppliers for that yet – try boxes, connectors, coax cable, drone motors, LiPo batteries, PCBs, foam or enclosures.</p>}
+    {c && <div className="mt-3"><FxCard c={c} onChange={setC} /></div>}
+  </Card>;
+}
 export function FxAgents() {
   const ctx = useStore(); const s = useFx();
   return (
     <div className="space-y-4">
-      <PageHeader crumbs={[{ label: 'Today', to: '/' }, { label: 'Agents' }]} title="Agents" subtitle="They prepare the work in the background. Nothing is filed, bought or sent without your OK." />
+      <PageHeader crumbs={[{ label: 'Today', to: '/' }, { label: 'Factory agents' }]} title="Factory agents" subtitle="They prepare the work in the background. Nothing is filed, bought or sent without your OK." />
+      <SourcingAgent />
       <div className="grid gap-3 md:grid-cols-2">{FX_AGENTS.map((a) => { const off = !!s.agentsOff[a.id]; return (
         <Card key={a.id} title={a.name} actions={<Button size="sm" variant={off ? 'primary' : 'secondary'} onClick={() => { fx.set((d) => { d.agentsOff[a.id] = !off; }); ctx.toast(`${a.name} ${off ? 'turned on' : 'paused'}`, 'blue'); }}>{off ? 'Turn on' : 'Pause'}</Button>}>
           <p className="text-[13px] text-slate-600">{a.does}</p><div className="mt-2"><Badge tone={off ? 'gray' : 'green'} dot>{off ? 'Paused' : 'On · prepares for your approval'}</Badge></div>

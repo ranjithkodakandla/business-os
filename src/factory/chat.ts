@@ -1,5 +1,6 @@
 /** Factory chat: answers the owner's real questions straight from the demo data, with one-tap proposals. Anything else goes to the AI with factoryContext(). */
 import type { Resp } from '../lib/converse';
+import { helpResp, tenderTextResp, sourcingResp, focusResp, moneyResp } from './brain';
 import { fx, iso, renewalRows, TENDERS, tenderView, fmtD, GROUPS, groupState, groupTotal, inr, lakh, SITES, siteNeeds, type SiteId, ORDERS, draftUpdate, CREW, COMPANY, DOCS, NEEDS } from './data';
 
 const R = (title: string, blocks: Resp['blocks'], actions: Resp['actions'] = [], links: Resp['links'] = []): Resp => ({ title, blocks, sources: [], actions, links });
@@ -10,6 +11,12 @@ export function factoryRespond(raw: string): Resp | null {
   const siteM = q.match(/site\s*([123])|\b(cherlapally|hosur|medak)\b/);
   const site = siteM ? (siteM[1] ? `S${siteM[1]}` : ({ cherlapally: 'S1', hosur: 'S2', medak: 'S3' } as Record<string, string>)[siteM[2]]) as SiteId : null;
 
+  // 0. v3 intents, most specific first: greeting/help, a pasted tender, sourcing, "what needs me", money.
+  if (/^(hi|hello|hey|namaste)\b|what can you do|how can you help|^help\b/.test(q)) return helpResp();
+  const tt = tenderTextResp(raw); if (tt) return tt;
+  const sr = sourcingResp(raw); if (sr) return sr;
+  if (/focus|attention|priorit|needs? (me|my)|pending approvals?|(pending|waiting) for my approval|for my (approval|ok)|waiting (for|on) me|what should i (do|look|focus)|my day|to.?do list/.test(q) && !/expir|renew|licen|tender|purchas|supplier/.test(q)) return focusResp();
+  const mr = moneyResp(q); if (mr) return mr;
   // 1. Licences and approvals (per site register)
   if (/expir|renew|licen[cs]e|\bnoc\b|consent|\bcto\b|approvals?\b|compliance|overdue|register/.test(q) && !/tender|bid/.test(q)) {
     const qEnd = (() => { const d = new Date(); const m = Math.floor(d.getMonth() / 3) * 3 + 3; return Math.round((+new Date(d.getFullYear(), m, 0) - +new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5); })();
@@ -19,7 +26,7 @@ export function factoryRespond(raw: string): Resp | null {
     const rows = renewalRows(s).filter((x) => x.left <= horizon && x.status !== 'Filed – awaiting authority' && (!site || x.r.site === site));
     if (!rows.length) return R(`Nothing at ${sname} expires ${label} that isn't already filed.`, [], [], [{ label: 'Open licence register', to: '/renewals' }]);
     const late = rows.filter((x) => x.late || x.left < 0);
-    return R(`${rows.length} licence${rows.length === 1 ? '' : 's'} at ${sname} expire${rows.length === 1 ? 's' : ''} ${label}`, [
+    return R(horizon === 0 ? `${rows.length} licence${rows.length === 1 ? ' has' : 's have'} already expired at ${sname}` : `${rows.length} licence${rows.length === 1 ? '' : 's'} at ${sname} expire${rows.length === 1 ? 's' : ''} ${label}`, [
       { type: 'table', cols: ['Licence', 'Site', 'Authority', 'Expires', 'Status'], rows: rows.map((x) => [x.r.kind, x.r.site === 'All' ? 'Company' : SITES[x.r.site].short, x.r.authority, `${fmtD(x.d.validTill!)} · ${x.left < 0 ? `overdue ${-x.left}d` : `${x.left}d left`}`, x.left < 0 ? 'Overdue' : x.status]) },
       ...(late.length ? [{ type: 'facts' as const, items: late.slice(0, 3).map((x) => ({ label: `${x.r.kind} – ${x.r.site === 'All' ? 'Company' : SITES[x.r.site].short}`, value: x.left < 0 ? `expired ${-x.left} days ago` : `authority needs ~${x.r.leadDays} days – start now`, tone: 'red' as const, to: `/renewals?r=${x.r.id}` })) }] : []),
       { type: 'text', text: `**Do first:** ${rows[0].d.name} – ${rows[0].r.agentNote}` },
@@ -28,6 +35,7 @@ export function factoryRespond(raw: string): Resp | null {
   // 2. Tenders
   if (/tender|\bbid\b|rfq|rate contract/.test(q)) {
     const t = TENDERS.find((x) => q.includes(x.id.toLowerCase()) || x.buyer.toLowerCase().split(/[ ,()]+/).some((w) => w.length > 4 && q.includes(w)) || x.name.toLowerCase().split(/[ –-]+/).some((w) => w.length > 5 && q.includes(w)));
+    if (!t && /can (we|i)|eligib|qualify|what (is|does)|explain|how (do|does|to)/.test(q)) return null; // a general tender question: let the AI answer
     if (!t) return R(`You have ${TENDERS.length} open tenders. Which one?`, [{ type: 'table', cols: ['Tender', 'Buyer', 'Closes', 'Ready from library'], rows: TENDERS.map((x) => { const v = tenderView(s, x); return [`${x.id} · ${x.name}`, x.buyer, fmtD(x.closes), `${v.pct}% · ${v.open.length} questions for you`]; }) }],
       TENDERS.map((x) => ({ label: `Prepare ${x.id}`, kind: `ask:prepare the tender pack for ${x.id}` })), [{ label: 'Open tenders', to: '/tenders' }]);
     const v = tenderView(s, t);
@@ -68,7 +76,6 @@ export function factoryRespond(raw: string): Resp | null {
       ...(rows.some((c) => c.site === 'S3') ? [{ type: 'facts' as const, items: [{ label: 'Site 3 contract labour licence', value: 'expired 3 days ago – 57 contract workers on site today are not covered', tone: 'red' as const, to: '/renewals' }] }] : []),
     ], rows.some((c) => c.site === 'S3') && !String(s.renewals['RN-01'] || '').startsWith('Filed') ? [{ label: 'Approve CLRA licence renewal', kind: 'fx:renew:RN-01', primary: true }] : [], [{ label: 'Open workforce', to: '/workforce' }]);
   }
-  if (/what (can|do) you|help|start|today|attention|needs? me/.test(q)) return null;
   return null;
 }
 

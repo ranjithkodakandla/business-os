@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY index.html vite.config.ts tsconfig.json tailwind.config.js postcss.config.js ./
 COPY src ./src
+COPY public ./public
 ARG VITE_EDITION=
 ENV VITE_EDITION=$VITE_EDITION
 RUN npm run build
@@ -17,6 +18,7 @@ COPY server/src ./server/src
 COPY server/tsconfig.json ./server/
 # server reuses shared modules from the frontend source (src/lib)
 COPY src ./src
+COPY public ./public
 COPY tsconfig.json ./
 COPY --from=web /app/dist ./dist
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/data

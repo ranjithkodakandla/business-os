@@ -49,7 +49,7 @@ export const docById = (id: string) => DOCS.find((d) => d.id === id);
 /* ── 2. Licence & approval register – per site, local + state government ── */
 export type RStatus = 'Not started' | 'Pack ready – needs your OK' | 'Filed – awaiting authority';
 export type Renewal = { id: string; docId: string; site: SiteId | 'All'; kind: string; authority: string; level: 'State' | 'Local' | 'Central' | 'Bank'; number: string; issued: string;
-  owner: string; approver: string; status: RStatus; fee: number; leadDays: number; agentNote: string; checklist: { label: string; docId?: string; ok?: boolean }[] };
+  owner: string; approver: string; status: RStatus; fee: number; leadDays: number; agentNote: string; checklist: { label: string; docId?: string; ok?: boolean }[]; doc?: Doc; reminders?: { at: number; on: string; ch: string; done: boolean }[] };
 const CK = {
   factory: (s: SiteId) => [{ label: 'Form 2 – renewal application (auto-filled)', ok: true }, { label: 'Approved building plan + occupancy', docId: `D-OCC${s[1]}` }, { label: 'Structural stability certificate', docId: `D-STAB${s[1]}` }, { label: 'PF and ESI challans, last 6 months', docId: 'D-PFESI' }, { label: 'Worker count from muster (auto)', ok: true }],
   fire: (s: SiteId) => [{ label: 'Extinguisher refill certificate', ok: true }, { label: 'Hydrant / sprinkler test report', ok: s !== 'S1' }, { label: 'Approved building plan + occupancy', docId: `D-OCC${s[1]}` }, { label: 'Previous fire NOC', docId: `D-FIRE${s[1]}` }],
@@ -191,9 +191,10 @@ export const FX_AGENTS = [
 export type FxState = {
   renewals: Record<string, Renewal['status']>; answers: Record<string, string>; packs: Record<string, 'approved'>;
   groups: Record<string, { pick?: number; po?: string; sent?: boolean }>; updates: Record<string, string>; agentsOff: Record<string, boolean>; booked: Record<string, boolean>;
+  added: Renewal[]; // licences added from an uploaded document in chat
 };
 const KEY = 'bos-factory-v1';
-const blank = (): FxState => ({ renewals: {}, answers: {}, packs: {}, groups: {}, updates: {}, agentsOff: {}, booked: {} });
+const blank = (): FxState => ({ renewals: {}, answers: {}, packs: {}, groups: {}, updates: {}, agentsOff: {}, booked: {}, added: [] });
 let st: FxState = (() => { try { return { ...blank(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return blank(); } })();
 const subs = new Set<() => void>();
 export const fx = { get: () => st, set: (fn: (d: FxState) => void) => { const d = structuredClone(st); fn(d); st = d; localStorage.setItem(KEY, JSON.stringify(st)); subs.forEach((f) => f()); }, reset: () => { st = blank(); localStorage.removeItem(KEY); subs.forEach((f) => f()); } };
@@ -201,7 +202,8 @@ export const useFx = () => useSyncExternalStore((f) => { subs.add(f); return () 
 
 /* ── Derived views (shared by screens and chat) ── */
 export const renewalStatus = (s: FxState, r: Renewal) => s.renewals[r.id] || r.status;
-export const renewalRows = (s: FxState) => RENEWALS.filter((r) => docById(r.docId)?.validTill).map((r) => { const d = docById(r.docId)!; const left = daysTo(d.validTill!); return { r, d, left, status: renewalStatus(s, r), late: left - r.leadDays < 0, overdue: left < 0, checklist: r.checklist.map((c) => { const cd = c.docId ? docById(c.docId) : undefined; return { ...c, have: c.docId ? !!cd && (!cd.validTill || daysTo(cd.validTill) > 0 || c.docId === r.docId) : !!c.ok }; }) }; }).sort((a, b) => a.left - b.left);
+export const allRenewals = (s: FxState) => [...RENEWALS, ...(s.added || [])];
+export const renewalRows = (s: FxState) => allRenewals(s).filter((r) => (r.doc || docById(r.docId))?.validTill).map((r) => { const d = (r.doc || docById(r.docId))!; const left = daysTo(d.validTill!); return { r, d, left, status: renewalStatus(s, r), late: left - r.leadDays < 0, overdue: left < 0, checklist: r.checklist.map((c) => { const cd = c.docId ? docById(c.docId) : undefined; return { ...c, have: c.docId ? !!cd && (!cd.validTill || daysTo(cd.validTill) > 0 || c.docId === r.docId) : !!c.ok }; }) }; }).sort((a, b) => a.left - b.left);
 export const tenderView = (s: FxState, t: Tender) => {
   const rows = t.items.map((it) => {
     const d = it.docId ? docById(it.docId) : undefined; const ans = s.answers[`${t.id}.${it.id}`];

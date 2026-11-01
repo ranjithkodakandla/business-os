@@ -22,6 +22,10 @@ import { cx, Button } from './ui';
 import { FACTORY } from '../factory/edition';
 import { factoryRespond, factoryContext } from '../factory/chat';
 import { runFx } from '../factory/actions';
+import { FxCard } from '../factory/cards';
+import { askAi, licenceCard, evaluateTender, tenderTitle } from '../factory/brain';
+import { readFile, parseLicence, parseTender, aiExtract, merge as mergeFields } from '../factory/docs';
+import { Paperclip } from 'lucide-react';
 
 const ID_RE = /(SO-\d{4}|PR-\d{3}|PO-\d{4}|INV-\d{4}|WO-\d{4}|DC-JW-\d{4}|RM-A17|PB-\d{4}|OP-\d{3}|SRC-\d{4})/g;
 const ID_ONE = new RegExp('^' + ID_RE.source + '$');
@@ -94,7 +98,7 @@ function BlockView({ b }: { b: Block }) {
         <div className="px-3.5 pb-2.5 pt-1 text-[11.5px] text-slate-400">Reply in one message with what you know – skip anything optional.</div>
       </div>
     );
-  if (b.type === 'data' || b.type === 'mod') return null;
+  if (b.type === 'data' || b.type === 'mod' || b.type === 'fx') return null;
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
       <table className="w-full text-[12.5px]">
@@ -129,6 +133,7 @@ function Answer({ r, msgId }: { r: Resp; msgId: number }) {
   const [used, setUsed] = useState<Record<string, boolean>>({});
   const started = (k: string) => (k === 'start-sourcing' && ctx.s.sourcing.status !== 'idle') || (k.startsWith('start-sprint') && ctx.s.sprint.status !== 'idle');
   const act = (kind: string) => {
+    if (kind.startsWith('fx:sample:')) return void window.dispatchEvent(new CustomEvent('fx-sample', { detail: kind.slice(10) }));
     if (kind.startsWith('fx:')) return runFx(ctx, kind);
     if (kind.startsWith('open:')) return nav(kind.slice(5));
     if (kind.startsWith('ask:')) return window.dispatchEvent(new CustomEvent('bw-ask', { detail: kind.slice(4) }));
@@ -150,7 +155,7 @@ function Answer({ r, msgId }: { r: Resp; msgId: number }) {
   return (
     <div className="fadein space-y-2.5" data-answer={msgId}>
       {r.title && <div className="text-[15px] font-semibold leading-snug tracking-tight text-slate-900">{r.title}</div>}
-      {r.blocks.map((b, i) => b.type === 'data' ? <DataView key={i} r={b.r} msgId={msgId} idx={i} /> : b.type === 'mod' ? <ModCardView key={i} c={b.c} msgId={msgId} idx={i} /> : <BlockView key={i} b={b} />)}
+      {r.blocks.map((b, i) => b.type === 'fx' ? <FxCard key={i} c={b.c} onChange={(c) => ctx.update((d) => { const bb = d.chat.find((x) => x.id === msgId)?.resp?.blocks[i]; if (bb && bb.type === 'fx') bb.c = c; })} /> : b.type === 'data' ? <DataView key={i} r={b.r} msgId={msgId} idx={i} /> : b.type === 'mod' ? <ModCardView key={i} c={b.c} msgId={msgId} idx={i} /> : <BlockView key={i} b={b} />)}
       {r.sources.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-2xs text-slate-400">
           <Database size={12} /> Based on
@@ -199,7 +204,7 @@ export function useChat() {
     const fresh = !answers && /^(show|list|add|update|change|create|hire|onboard|what|who|how|why|when|which|where|hi|hey|hello|need|i need|mark|received|get|find|give)\b/i.test(t);
     let followUp = false;
     // Factory edition: answer from factory data with one-tap proposals; anything else goes to the AI with the factory context (no main-app cards).
-    if (FACTORY) { const fr = factoryRespond(t); if (fr) setTimeout(() => put0(fr), 400); else normal(); return true; }
+    if (FACTORY) { const fr = factoryRespond(t); if (fr) setTimeout(() => put0(fr), 400); else { setThinking(t, 'Thinking…', [3500, 'Checking your licences, orders, money and suppliers…']); askAi(t, s.chat.slice(-6).map((m) => ({ role: m.role, text: m.text || m.resp?.title || '' }))).then(put0); } return true; }
     const putMod = (c: ModCard) => put0({ title: '', blocks: [{ type: 'mod', c }], sources: [], actions: [], links: [] });
     // A pending AI action card (payroll, users, approvals, GST, leave…) takes the follow-up as its answer.
     const modPend = lastAi?.resp ? lastAi.resp.blocks.findIndex((b) => b.type === 'mod' && b.c.status === 'pending' && b.c.kind === 'action') : -1;
@@ -289,7 +294,33 @@ export function useChat() {
   const askRef = useRef(ask); askRef.current = ask;
   useEffect(() => { const h = (e: Event) => askRef.current(String((e as CustomEvent).detail || '')); window.addEventListener('bw-ask', h); return () => window.removeEventListener('bw-ask', h); }, []);
   useEffect(() => { const h = (e: Event) => { const line = String((e as CustomEvent).detail || ''); setQ((v) => (v.trim() ? v.replace(/\s*$/, '\n') : '') + line); }; window.addEventListener('bw-fill', h); return () => window.removeEventListener('bw-fill', h); }, []);
-  return { q, setQ, ask, thinking, stage };
+  // Factory: an uploaded licence or tender is read in the browser, fields are pulled out (rules + AI), and a confirm card comes back.
+  const attach = async (f: File) => {
+    if (thinking) return;
+    update((d) => { d.chat.push({ id: Date.now(), role: 'user', text: `📎 ${f.name}`, at: '' }); });
+    setThinking(f.name, `Reading ${f.name}…`, [4000, f.type.startsWith('image/') ? 'Reading the photo – this takes a few seconds…' : 'Pulling out the details…']);
+    const put1 = (resp: Resp) => { update((d) => { d.chat.push({ id: Date.now() + 1, role: 'system', text: '', resp, at: '' }); }); setThinking(null); };
+    try {
+      const { text, how } = await readFile(f);
+      if (!text.trim()) throw new Error('no text found');
+      const isTender = /tender|bid due|eligibility|earnest money|\bemd\b|\bnit\b/i.test(text);
+      if (isTender) {
+        const rule = parseTender(text); const ai = rule.minTurnoverCr === null || !rule.item ? await aiExtract('tender', text) : null;
+        const c = evaluateTender(mergeFields(rule, ai), f.name);
+        put1({ title: tenderTitle(c), blocks: [{ type: 'fx', c }], sources: [], actions: [], links: [{ label: 'Open tenders', to: '/tenders' }] });
+      } else {
+        const rule = parseLicence(text); const ai = !rule.kind || !rule.expires || !rule.authority || !rule.site ? await aiExtract('licence', text) : null;
+        const fl = mergeFields(rule, ai); const c = licenceCard({ ...fl, site: (['S1', 'S2', 'S3'].includes(String(fl.site)) ? fl.site : '') as typeof fl.site }, f.name, how);
+        const miss = (['kind', 'number', 'authority', 'site', 'issued', 'expires'] as const).filter((k) => !fl[k]);
+        put1({ title: miss.length ? `I read the ${fl.kind || 'document'} – please fill ${miss.length} missing field${miss.length > 1 ? 's' : ''} and confirm` : `I read your ${fl.kind} – check the details and confirm`, blocks: [{ type: 'fx', c }], sources: [], actions: [], links: [] });
+      }
+    } catch (e) {
+      put1({ title: "I couldn't read that file", blocks: [{ type: 'text', text: `${String((e as Error).message || e).slice(0, 100)}. Try a PDF or a clear photo, or type the details.` }], sources: [], actions: [], links: [] });
+    }
+  };
+  const attachRef = useRef(attach); attachRef.current = attach;
+  useEffect(() => { if (!FACTORY) return; const h = async (e: Event) => { const name = String((e as CustomEvent).detail || ''); const r = await fetch(`/samples/${name}`); const b = await r.blob(); attachRef.current(new File([b], name, { type: b.type || (name.endsWith('.pdf') ? 'application/pdf' : 'image/png') })); }; window.addEventListener('fx-sample', h); return () => window.removeEventListener('fx-sample', h); }, []);
+  return { q, setQ, ask, thinking, stage, attach: FACTORY ? attach : undefined };
 }
 export type Chat = ReturnType<typeof useChat>;
 
@@ -329,7 +360,9 @@ export function Composer({ chat, big, placeholder = 'Ask anything or tell me wha
   useEffect(() => { const el = ref.current; if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 220) + 'px'; }, [q, ref]);
   const send = () => { voice.stop(); ask(q); };
   const voice = useVoice(q, setQ);
-  const mic = <MicButton v={voice} />;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const mic = <>{chat.attach && <><input ref={fileRef} type="file" data-testid="composer-file" accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) chat.attach!(f); e.target.value = ''; }} />
+    <button type="button" data-testid="composer-attach" aria-label="Upload a licence or tender" title="Upload a licence or tender (PDF or photo)" onClick={() => fileRef.current?.click()} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"><Paperclip size={18} /></button></>}<MicButton v={voice} /></>;
   return (
     <form data-testid="command-bar" onSubmit={(e) => { e.preventDefault(); send(); }} className={cx('ask-field relative rounded-[22px] bg-white transition', big ? 'px-4 pb-3 pt-3.5 md:px-5' : 'px-3 py-2')}>
       <div className="flex items-end gap-2">
