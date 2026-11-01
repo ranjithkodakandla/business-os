@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Home, Inbox, Handshake, ClipboardList, ShoppingCart, Boxes, Factory, Users, IndianRupee, BarChart3, Truck, Bot, Plug, Sparkles, Contact,
   Wallet, MessagesSquare, FileCheck2, CalendarClock, History, Settings, Coins,
-  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen, CreditCard, BellRing, GitCompareArrows,
+  Cog, ShieldCheck, Landmark, Receipt, PackageCheck, Bell, FolderOpen, CreditCard, BellRing, GitCompareArrows, Mail, UserCheck,
 } from 'lucide-react';
 import type { Lang } from './i18n';
 import { FACTORY } from '../factory/edition';
@@ -68,6 +68,8 @@ const FX_MODULES: NavItem[] = [
   { key: 'purchasing', to: '/purchasing', icon: ShoppingCart, group: 'Buy', fx: true, label: L('Purchasing', 'ख़रीद', 'కొనుగోళ్లు'), desc: 'Needs from all sites, consolidated' },
   { key: 'customers', to: '/customers', icon: PackageCheck, group: 'Sell', fx: true, label: L('Customer orders & QA', 'ग्राहक ऑर्डर', 'కస్టమర్ ఆర్డర్లు'), desc: 'Export orders, QA and customer updates' },
   { key: 'workforce', to: '/workforce', icon: Users, group: 'People', fx: true, label: L('Workforce', 'कर्मचारी', 'ఉద్యోగులు'), desc: 'Full-time and contract by site' },
+  { key: 'fxthreads', to: '/email-threads', icon: Mail, group: 'Home', fx: true, label: L('Email threads', 'ईमेल थ्रेड', 'ఈమెయిల్ థ్రెడ్లు'), desc: 'Who is waiting on whom, stuck threads, draft replies' },
+  { key: 'fxteam', to: '/team-status', icon: UserCheck, group: 'People', fx: true, label: L('Team availability', 'टीम उपलब्धता', 'టీమ్ లభ్యత'), desc: 'Who is in, on leave or travelling, and their backup' },
   { key: 'fxagents', to: '/factory-agents', icon: Bot, group: 'Admin', fx: true, label: L('Factory agents', 'एजेंट', 'ఏజెంట్లు'), desc: 'Sourcing, renewals, tenders and customer-update agents' },
 ];
 /** Factory edition: the same pillars as the main app; factory screens are pinned first in their pillar and flagged fx (shown with a 'For you' badge). */

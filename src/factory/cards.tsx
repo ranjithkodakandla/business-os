@@ -6,6 +6,7 @@ import { Badge, Button, cx } from '../components/ui';
 import { fx, SITES, inr, fmtD, daysTo, lakh, type Renewal, type SiteId } from './data';
 import { reminderPlan, tenderTitle, type FxC } from './brain';
 import { buildBidZip, download } from './docs';
+import { Contacts, Threads, ThreadCard, Team } from './ops';
 
 const TONE = { red: 'bg-rose-500', amber: 'bg-amber-500', green: 'bg-emerald-500', blue: 'bg-brand-500' };
 const box = 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm';
@@ -15,6 +16,10 @@ export function FxCard({ c, onChange }: { c: FxC; onChange: (c: FxC) => void }) 
   if (c.k === 'bars') return <Bars c={c} />;
   if (c.k === 'licence') return <Licence c={c} onChange={onChange} />;
   if (c.k === 'sourcing') return <Sourcing c={c} onChange={onChange} />;
+  if (c.k === 'contacts') return <Contacts c={c} />;
+  if (c.k === 'threads') return <Threads ids={c.ids} onAsk={(q) => window.dispatchEvent(new CustomEvent('fx-ask', { detail: q }))} />;
+  if (c.k === 'thread') return <ThreadCard c={c} onChange={onChange} />;
+  if (c.k === 'team') return <Team ids={c.ids} focus={c.focus} />;
   return <TenderCard c={c} onChange={onChange} />;
 }
 

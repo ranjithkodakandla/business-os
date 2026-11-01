@@ -191,10 +191,11 @@ export const FX_AGENTS = [
 export type FxState = {
   renewals: Record<string, Renewal['status']>; answers: Record<string, string>; packs: Record<string, 'approved'>;
   groups: Record<string, { pick?: number; po?: string; sent?: boolean }>; updates: Record<string, string>; agentsOff: Record<string, boolean>; booked: Record<string, boolean>;
+  reassign: Record<string, string>; // thread id -> person id it was handed to
   added: Renewal[]; // licences added from an uploaded document in chat
 };
 const KEY = 'bos-factory-v1';
-const blank = (): FxState => ({ renewals: {}, answers: {}, packs: {}, groups: {}, updates: {}, agentsOff: {}, booked: {}, added: [] });
+const blank = (): FxState => ({ renewals: {}, answers: {}, packs: {}, groups: {}, updates: {}, agentsOff: {}, booked: {}, added: [], reassign: {} });
 let st: FxState = (() => { try { return { ...blank(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return blank(); } })();
 const subs = new Set<() => void>();
 export const fx = { get: () => st, set: (fn: (d: FxState) => void) => { const d = structuredClone(st); fn(d); st = d; localStorage.setItem(KEY, JSON.stringify(st)); subs.forEach((f) => f()); }, reset: () => { st = blank(); localStorage.removeItem(KEY); subs.forEach((f) => f()); } };

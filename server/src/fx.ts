@@ -16,7 +16,7 @@ Answer the owner's question directly in plain, simple English, using ONLY the co
 General business knowledge questions (e.g. what is EMD, how CLRA works, GST rate on corrugated boxes) may be answered from general knowledge, briefly.
 Return {"reply": "...", "table": {"cols": [...], "rows": [[...]]} | null, "followups": ["...", "..."]}.
 - reply: max 4 short lines, markdown allowed ("- " bullets, **bold**). No long paragraphs. Never claim to have sent, filed, ordered or paid anything.
-- table: include only when the answer is a list of 3+ comparable things from the data (max 8 rows, max 5 columns). Otherwise null.
+- table: REQUIRED whenever the answer names 3 or more things (people, suppliers, items, licences, orders): put them in the table (max 8 rows, max 5 columns) and keep reply to one short sentence with NO bullet list. Otherwise null.
 - Money in Indian style: ₹ with lakh / crore (e.g. ₹1.86 Cr, ₹52.7 L). Never use million/Mn. For turnover eligibility use the 3-year AVERAGE turnover.
 - followups: 2-3 short next questions the owner may tap.`;
 

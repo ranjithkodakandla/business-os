@@ -1,3 +1,4 @@
+import { THREADS, TEAM } from './more';
 /** One-tap agent proposals. Every send is simulated – nothing leaves the demo. */
 import type { useStore } from '../lib/store';
 import { MONEY } from './more';
@@ -41,8 +42,16 @@ export function sendUpdate(ctx: Ctx, oid: string) {
   ctx.openDraft({ title: `Status update – ${o.id} to ${o.customer}`, channel: 'Email', to: `${o.contact} · ${o.customer}`, toDetail: `${o.email} · simulated, nothing is sent`, body: draftUpdate(o), approveLabel: 'Approve & send',
     onApprove: () => { fx.set((d) => { d.updates[oid] = new Date().toISOString(); }); audit(ctx, 'customers', `Status update for ${o.id} sent to ${o.contact} (simulated)`, o.id); ctx.toast(`Update for ${o.id} marked as sent (simulated)`, 'green'); } });
 }
+export function reassign(ctx: Ctx, id: string, to: string) {
+  const t = THREADS.find((x) => x.id === id); const p = TEAM.find((x) => x.id === to); if (!t || !p) return;
+  const from = TEAM.find((x) => x.id === (fx.get().reassign?.[id] || t.owner))!;
+  fx.set((d) => { d.reassign = { ...(d.reassign || {}), [id]: to }; });
+  ctx.update(() => {}, `Reassigned "${t.subject}" from ${from.name} (${from.status.toLowerCase()}) to ${p.name}`, { module: 'inbox', record: id });
+  ctx.toast(`${t.company.split(' (')[0]} thread handed to ${p.name.split(' ')[0]} – ${from.name.split(' ')[0]} will see it when back`, 'green');
+}
 export function runFx(ctx: Ctx, kind: string) {
   const [, what, id] = kind.split(':');
+  if (what === 'reassign') return reassign(ctx, id, kind.split(':')[3]);
   if (what === 'renew') return approveRenewal(ctx, id);
   if (what === 'prep') return preparePack(ctx, id);
   if (what === 'renew-all') return RENEWALS.filter((r) => (fx.get().renewals[r.id] || r.status) !== 'Filed – awaiting authority').forEach((r) => approveRenewal(ctx, r.id));

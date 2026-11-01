@@ -2,9 +2,10 @@
  *  Every answer is a Resp with visual blocks; interactive cards use the 'fx' block (rendered by cards.tsx). */
 import type { Resp } from '../lib/converse';
 import { fx, renewalRows, TENDERS, tenderView, GROUPS, groupState, groupTotal, ORDERS, updateDue, CREW, SITES, inr, lakh, fmtD, iso, daysTo, LADDER, type SiteId } from './data';
-import { CATS, rankSuppliers, MONEY, COSTING, PROFILE, certHave, type Supplier } from './more';
+import { CATS, rankSuppliers, MONEY, COSTING, PROFILE, certHave, CONTACTS, THREADS, TEAM, person, away, type Supplier, type Contact, type Thread } from './more';
 import { parseTender, type LicFields, type TenderFields } from './docs';
 import { factoryContext } from './chat';
+import { listToTable } from './guard';
 
 export type Bar = { label: string; v: number; tone?: 'red' | 'amber' | 'green' | 'blue' };
 export type Check = { label: string; need: string; have: string; ok: boolean | null };
@@ -13,6 +14,10 @@ export type FxC =
   | { k: 'bars'; title: string; unit: string; bars: Bar[]; note?: string }
   | { k: 'licence'; file: string; how: string; f: LicFields; status: 'pending' | 'added' | 'cancelled'; id?: string; dup?: string }
   | { k: 'sourcing'; item: string; spec: string; qty: number; unit: string; rows: (Supplier & { ok: boolean })[]; pick: number; status: 'pending' | 'rfq' | 'po'; ref?: string }
+  | { k: 'contacts'; title: string; rows: Contact[] }
+  | { k: 'threads'; ids: string[] }
+  | { k: 'thread'; id: string; status: 'pending' | 'sent' }
+  | { k: 'team'; ids: string[]; focus?: string }
   | { k: 'tender'; file: string; t: TenderFields; checks: Check[]; verdict: 'yes' | 'gaps' | 'no'; cost: Cost | null; price: number; status: 'pending' | 'approved'; files?: string[] };
 const R = (title: string, blocks: Resp['blocks'], actions: Resp['actions'] = [], links: Resp['links'] = []): Resp => ({ title, blocks, sources: [], actions, links });
 const card = (c: FxC) => ({ type: 'fx' as const, c });
@@ -122,8 +127,48 @@ export async function askAi(text: string, history: { role: string; text: string 
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 11000);
     const r = await fetch('/api/fx/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, context: factoryContext() + '\n' + JSON.stringify({ money: MONEY, costing: COSTING, profile: PROFILE, suppliers: CATS.map((c) => `${c.label}: ${c.suppliers.map((s) => `${s.name} ₹${s.price} MOQ ${s.moq} ${s.lead}d ★${s.rating}`).join('; ')}`) }), history }), signal: ctl.signal });
     clearTimeout(tm); const j = await r.json();
-    if (j.ok) return R('', [{ type: 'md', at: Date.now(), text: j.reply }, ...(j.table ? [{ type: 'table' as const, cols: j.table.cols, rows: j.table.rows }] : [])], (j.followups || []).map((f: string) => ({ label: f, kind: `ask:${f}` })));
+    if (j.ok) { let reply: string = j.reply || ''; let table = j.table && j.table.rows?.length ? j.table : null;
+      const g = listToTable(reply); if (g) { reply = g.lead || 'Here it is:'; if (!table) table = g.table; } // list guardrail
+      return R('', [{ type: 'md', at: Date.now(), text: reply }, ...(table ? [{ type: 'table' as const, cols: table.cols, rows: table.rows }] : [])], (j.followups || []).map((f: string) => ({ label: f, kind: `ask:${f}` }))); }
   } catch { /* timeout or offline – fall through */ }
   void t0;
   return R("I couldn't get an AI answer in time", [{ type: 'text', text: 'Nothing was sent or changed. These I can answer right away:' }], [{ label: 'Try again', kind: `ask:${text}`, primary: true }, { label: 'What should I focus on?', kind: 'ask:what should I focus on today?' }, { label: 'Cash position', kind: 'ask:what is our cash position?' }, { label: 'What can you do?', kind: 'ask:what can you do?' }]);
 }
+
+/* ── v4: contacts, email threads, team availability ── */
+export const ownerOf = (t: Thread) => person(fx.get().reassign?.[t.id] || t.owner);
+export const stalledAway = () => THREADS.filter((t) => t.waitingOn === 'us' && away(ownerOf(t))).sort((a, b) => b.days - a.days);
+const findThread = (q: string) => THREADS.find((t) => t.key.test(q) || (t.ref && q.includes(t.ref.toLowerCase())));
+const CONTACT_RE = /\bcontacts?\b|phone|mobile|numbers?\b|email ids?|email address|whatsapp|how (do i|to|can i) reach|reach out|call (them|the)|details of (our|the)|address book/;
+export function opsResp(text: string): Resp | null {
+  const q = text.toLowerCase();
+  // who is handling X / availability
+  const who = /who('?s| is)? (handling|owning|owns|managing|looking after|responsible|working on|in charge)|who handles|owner of|is (he|she|they) available|availab|on leave|presence|who is (in|out|away|off)|out of office|team status|who('?s| is) (free|around)/;
+  if (who.test(q)) {
+    const t = findThread(q);
+    if (t) { const o = ownerOf(t); const bk = o.backup ? person(o.backup) : null;
+      return R(`${o.name} is handling the ${t.company.replace(/ \((demo|fictional)\)/, '')} ${t.ref || 'thread'} – ${away(o) ? `${o.status.toLowerCase()} till ${o.until}` : o.status.toLowerCase()}`, [card({ k: 'team', ids: [o.id, ...(bk ? [bk.id] : [])], focus: t.id }), card({ k: 'thread', id: t.id, status: 'pending' })],
+        bk && away(o) ? [{ label: `Reassign to ${bk.name.split(' ')[0]}`, kind: `fx:reassign:${t.id}:${bk.id}`, primary: true }] : []); }
+    const out = TEAM.filter(away);
+    return R(`${TEAM.length - out.length} of ${TEAM.length} available today – ${out.map((p) => `${p.name.split(' ')[0]} ${p.status.toLowerCase()}`).join(', ')}`, [card({ k: 'team', ids: TEAM.map((p) => p.id) })]);
+  }
+  // email threads
+  if (/thread|e-?mails?\b|inbox|mails?\b|follow.?ups?\b|stalled|stuck/.test(q) && !/draft (an?|the) (status )?update|licen|tender/.test(q)) {
+    const t = findThread(q);
+    if (t && /summar|thread|status|what|latest|happen|stuck|pending|where/.test(q)) return R(`${t.company.replace(/ \((demo|fictional)\)/, '')}: ${t.waitingOn === 'us' ? `waiting on us for ${t.days} days` : `waiting on them (${t.days} d)`}`, [card({ k: 'thread', id: t.id, status: 'pending' })]);
+    if (/pending|summar|digest|stuck|stall|what|which|status|follow|show|list|open|inbox|thread/.test(q)) { const us = THREADS.filter((x) => x.waitingOn === 'us');
+      return R(`${us.length} threads waiting on you, ${stalledAway().length} stuck because the owner is away`, [card({ k: 'threads', ids: THREADS.map((x) => x.id) })], [{ label: `Summarise the ${THREADS[0].company.split(' (')[0]} thread`, kind: `ask:summarise the ${THREADS[0].company.split(' (')[0]} thread` }, { label: 'Who is handling the AeroSpark order?', kind: 'ask:who is handling the AeroSpark order and are they available?' }]); }
+  }
+  // contacts / people lists
+  if (CONTACT_RE.test(q) || /^(list|show|get)( me)? (all |our )?(suppliers|vendors|customers|people|team|staff)\b/.test(q) || /who (are|is) our (suppliers?|vendors?|customers?)/.test(q)) {
+    let rows: Contact[] = CONTACTS; let what = 'Contacts';
+    if (/supplier|vendor/.test(q)) { rows = CONTACTS.filter((c) => c.kind !== 'Customer'); what = 'Supplier contacts'; }
+    else if (/customer|buyer|client/.test(q)) { rows = CONTACTS.filter((c) => c.kind === 'Customer'); what = 'Customer contacts'; }
+    else if (/team|staff|employee|people|colleague|internal/.test(q)) { rows = TEAM.map((p) => ({ company: p.site, name: p.name, role: p.role, kind: 'Internal' as const, city: p.status + (p.until ? ` till ${p.until}` : ''), phone: p.phone, email: p.email, about: p.note || '' })); what = 'Team contacts'; }
+    const named = rows.filter((c) => q.includes(c.company.toLowerCase().split(' ')[0]) || q.includes(c.name.toLowerCase().split(' ')[0]));
+    if (named.length) rows = named;
+    return R(`${what} – ${rows.length}`, [card({ k: 'contacts', title: what, rows })]);
+  }
+  return null;
+}
+

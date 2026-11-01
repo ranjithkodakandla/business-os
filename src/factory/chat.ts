@@ -1,6 +1,6 @@
 /** Factory chat: answers the owner's real questions straight from the demo data, with one-tap proposals. Anything else goes to the AI with factoryContext(). */
 import type { Resp } from '../lib/converse';
-import { helpResp, tenderTextResp, sourcingResp, focusResp, moneyResp } from './brain';
+import { helpResp, tenderTextResp, sourcingResp, focusResp, moneyResp, opsResp } from './brain';
 import { fx, iso, renewalRows, TENDERS, tenderView, fmtD, GROUPS, groupState, groupTotal, inr, lakh, SITES, siteNeeds, type SiteId, ORDERS, draftUpdate, CREW, COMPANY, DOCS, NEEDS } from './data';
 
 const R = (title: string, blocks: Resp['blocks'], actions: Resp['actions'] = [], links: Resp['links'] = []): Resp => ({ title, blocks, sources: [], actions, links });
@@ -14,6 +14,7 @@ export function factoryRespond(raw: string): Resp | null {
   // 0. v3 intents, most specific first: greeting/help, a pasted tender, sourcing, "what needs me", money.
   if (/^(hi|hello|hey|namaste)\b|what can you do|how can you help|^help\b/.test(q)) return helpResp();
   const tt = tenderTextResp(raw); if (tt) return tt;
+  const op = opsResp(raw); if (op) return op; // v4: contacts, email threads, who's available
   const sr = sourcingResp(raw); if (sr) return sr;
   if (/focus|attention|priorit|needs? (me|my)|pending approvals?|(pending|waiting) for my approval|for my (approval|ok)|waiting (for|on) me|what should i (do|look|focus)|my day|to.?do list/.test(q) && !/expir|renew|licen|tender|purchas|supplier/.test(q)) return focusResp();
   const mr = moneyResp(q); if (mr) return mr;

@@ -46,9 +46,10 @@ def test_today_crew_action(page):
     assert 'loaders' in page.inner_text('body')
     assert page.locator('[data-todo^="crew-"]').count() == 0
 
-def test_today_customer_update_action(page):
-    todo(page, 'EX-').click(); page.wait_for_timeout(800)
-    assert page.get_by_role('button', name='Approve & send').count()
+def test_today_stalled_thread_action(page):
+    # v4: the customer-update row was replaced by a stalled email thread whose owner is away (customer updates stay in chat and /customers)
+    todo(page, 'TH-').click(); page.wait_for_timeout(800)
+    assert 'handed to' in page.inner_text('body')
 
 CHAT = [
     ('What expires this quarter at the Hosur site?', r'licences? at Site 2 Hosur expire'),

@@ -319,6 +319,8 @@ export function useChat() {
     }
   };
   const attachRef = useRef(attach); attachRef.current = attach;
+
+  useEffect(() => { if (!FACTORY) return; const h = (e: Event) => askRef.current(String((e as CustomEvent).detail || '')); window.addEventListener('fx-ask', h); return () => window.removeEventListener('fx-ask', h); }, []);
   useEffect(() => { if (!FACTORY) return; const h = async (e: Event) => { const name = String((e as CustomEvent).detail || ''); const r = await fetch(`/samples/${name}`); const b = await r.blob(); attachRef.current(new File([b], name, { type: b.type || (name.endsWith('.pdf') ? 'application/pdf' : 'image/png') })); }; window.addEventListener('fx-sample', h); return () => window.removeEventListener('fx-sample', h); }, []);
   return { q, setQ, ask, thinking, stage, attach: FACTORY ? attach : undefined };
 }

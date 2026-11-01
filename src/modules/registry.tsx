@@ -31,7 +31,7 @@ import { Production, Quality, BankTds, Expenses, DispatchPage, Notifications, Do
 import { SettingsPage, PayrollPage, InboxPage, GstPage, AttendancePage, AuditPage } from '../pages/p0';
 
 import { FACTORY } from '../factory/edition';
-import { FxHome, FxTenders, FxRenewals, FxPurchasing, FxCustomers, FxWorkforce, FxAgents } from '../factory/pages';
+import { FxHome, FxTenders, FxRenewals, FxPurchasing, FxCustomers, FxWorkforce, FxAgents, FxThreads, FxTeam } from '../factory/pages';
 
 /** [path, module key (for RBAC), element]. Add new module pages here. */
 const MAIN_ROUTES: [string, string, React.ReactNode][] = [
@@ -53,7 +53,7 @@ const MAIN_ROUTES: [string, string, React.ReactNode][] = [
 ];
 const FX_ROUTES: [string, string, React.ReactNode][] = [
   ['/', 'home', <FxHome />], ['/tenders', 'tenders', <FxTenders />], ['/renewals', 'renewals', <FxRenewals />], ['/purchasing', 'purchasing', <FxPurchasing />],
-  ['/customers', 'customers', <FxCustomers />], ['/workforce', 'workforce', <FxWorkforce />], ['/factory-agents', 'fxagents', <FxAgents />],
+  ['/customers', 'customers', <FxCustomers />], ['/workforce', 'workforce', <FxWorkforce />], ['/factory-agents', 'fxagents', <FxAgents />], ['/email-threads', 'fxthreads', <FxThreads />], ['/team-status', 'fxteam', <FxTeam />],
 ];
 export const ROUTES = FACTORY ? [...FX_ROUTES.filter(([path]) => path !== '/agents'), ...MAIN_ROUTES.filter(([path]) => path !== '/')] : MAIN_ROUTES;
 

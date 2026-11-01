@@ -1,3 +1,8 @@
+import { stalledAway, ownerOf } from './brain';
+import { person, THREADS, TEAM } from './more';
+import { reassign } from './actions';
+import { Threads, Team, ThreadCard } from './ops';
+import { MailWarning } from 'lucide-react';
 import { SAMPLES, sourcingCard, type FxC } from './brain';
 import { FxCard } from './cards';
 import { Paperclip } from 'lucide-react';
@@ -45,7 +50,8 @@ export function FxHome() {
     ...tq.filter((x) => x.v.open.length).slice(0, 1).map((x): Row => ({ k: x.t.id, icon: FileCheck2, tone: 'bg-brand-500', text: `${x.t.id} ${x.t.name}: ${x.v.open.length} questions for you`, sub: `${x.v.pct}% already filled from your library · closes ${fmtD(x.t.closes)} · ${lakh(x.t.value)}`, cta: 'Answer', go: () => nav(`/tenders?t=${x.t.id}`), open: `/tenders?t=${x.t.id}` })),
     ...buys.slice(0, 1).map((g): Row => ({ k: g.id, icon: ShoppingCart, tone: 'bg-violet-500', text: `Buy ${g.item} – ${g.qty.toLocaleString('en-IN')} ${g.unit} from ${g.quotes[g.pick].supplier}`, sub: g.saving, cta: `Approve ${inr(groupTotal(g))}`, go: () => approvePO(ctx, g.id), open: '/purchasing' })),
     ...CREW.filter((c) => c.need && !s.booked[c.site]).map((c): Row => ({ k: 'crew-' + c.site, icon: Users, tone: 'bg-sky-500', text: `${SITES[c.site].short}: ${c.need}`, sub: `${c.presentDaily} of ${c.daily} daily-wage workers in today · ${c.agency} can send 8 by 2 pm at ${inr(c.dailyRate)}/day (${inr(8 * c.dailyRate)})`, cta: `Book 8 · ${inr(8 * c.dailyRate)}`, go: () => { fx.set((d) => { d.booked[c.site] = true; }); ctx.update(() => {}, `Booked 8 daily-wage workers for ${SITES[c.site].short} from ${c.agency} (simulated)`, { module: 'workforce', agent: true }); ctx.toast(`${c.agency} asked for 8 loaders by 2 pm – WhatsApp simulated`, 'green'); }, open: '/workforce' })),
-    ...ups.slice(0, 1).map((o): Row => ({ k: o.id, icon: Globe2, tone: 'bg-emerald-500', text: `${o.contact} (${o.country}) is waiting for an update on ${o.id}`, sub: `Last update ${o.lastUpdateDays} days ago · draft ready from floor + QA data`, cta: 'Review & send', go: () => sendUpdate(ctx, o.id), open: `/customers?o=${o.id}` })),
+    ...stalledAway().slice(0, 1).map((t): Row => { const o = ownerOf(t); const bk = person(o.backup!); return { k: t.id, icon: MailWarning, tone: 'bg-rose-500', text: `${t.company.split(' (')[0]} waiting ${t.days} days – ${o.name.split(' ')[0]} is ${o.status.toLowerCase()} till ${o.until}`, sub: `${t.summary} · ${bk.name} (${bk.status.toLowerCase()}) can take it`, cta: `Reassign to ${bk.name.split(' ')[0]}`, go: () => reassign(ctx, t.id, bk.id), open: '/email-threads' }; }),
+    ...(stalledAway().length ? [] : ups).slice(0, 1).map((o): Row => ({ k: o.id, icon: Globe2, tone: 'bg-emerald-500', text: `${o.contact} (${o.country}) is waiting for an update on ${o.id}`, sub: `Last update ${o.lastUpdateDays} days ago · draft ready from floor + QA data`, cta: 'Review & send', go: () => sendUpdate(ctx, o.id), open: `/customers?o=${o.id}` })),
   ].slice(0, 5);
   const crew = CREW.reduce((a, c) => a + c.presentFt + c.presentContract, 0); const crewT = CREW.reduce((a, c) => a + c.ft + c.contract, 0);
   return (
@@ -246,4 +252,15 @@ export function FxAgents() {
         </Card>); })}</div>
     </div>
   );
+}
+
+export function FxThreads() {
+  const [open, setOpen] = React.useState<string | null>(null); const [st, setSt] = React.useState<'pending' | 'sent'>('pending');
+  return <div className="mx-auto max-w-5xl space-y-4 pb-10"><div><h1 className="text-[22px] font-semibold text-slate-900">Email threads</h1><p className="text-[13.5px] text-slate-500">Supplier and customer threads in one place – who is waiting on whom, how long, and what to do next. Stuck threads whose owner is away can be handed over in one tap.</p></div>
+    <Threads ids={THREADS.map((t) => t.id)} onOpen={(id) => { setOpen(id); setSt('pending'); }} />
+    {open && <ThreadCard c={{ k: 'thread', id: open, status: st }} onChange={(c) => c.k === 'thread' && setSt(c.status)} />}</div>;
+}
+export function FxTeam() {
+  return <div className="mx-auto max-w-5xl space-y-4 pb-10"><div><h1 className="text-[22px] font-semibold text-slate-900">Team availability</h1><p className="text-[13.5px] text-slate-500">Who is in, on site, travelling or on leave today, their backup, and the work waiting with them.</p></div>
+    <Team ids={TEAM.map((p) => p.id)} /></div>;
 }

@@ -89,3 +89,56 @@ export const certHave = (name: string): { ok: boolean; how: string } => {
   if (/factory/.test(n)) return { ok: true, how: 'Factory licences for all 3 sites (Site 1 renewal due in 12 days – file it first)' };
   const d = DOCS.find((x) => x.name.toLowerCase().includes(n.split(' ')[0])); return d ? { ok: true, how: d.name } : { ok: false, how: 'Not in your document library' };
 };
+
+/* ── v4: team presence, contacts, email threads (all fictional; phone numbers masked) ── */
+export type Presence = 'Available' | 'On site' | 'Travelling' | 'On leave';
+export type Person = { id: string; name: string; role: string; site: string; status: Presence; until?: string; note?: string; backup?: string; phone: string; email: string };
+export const TEAM: Person[] = [
+  { id: 'sunil', name: 'Sunil Reddy', role: 'Operations & purchase', site: 'Site 1 Cherlapally', status: 'Available', phone: '+91 98xxx xx214', email: 'sunil@shakti.example' },
+  { id: 'kiran', name: 'Kiran Rao', role: 'Purchase executive', site: 'Site 2 Hosur', status: 'On leave', until: '5 Nov', note: 'family function, not on email', backup: 'sunil', phone: '+91 97xxx xx518', email: 'kiran@shakti.example' },
+  { id: 'meena', name: 'Meena Iyer', role: 'Export coordinator', site: 'Site 1 Cherlapally', status: 'Travelling', until: '4 Nov', note: 'customer visit in Germany, replies late evening', backup: 'ravi', phone: '+91 99xxx xx307', email: 'meena@shakti.example' },
+  { id: 'ravi', name: 'Ravi Teja', role: 'Sales executive', site: 'Site 1 Cherlapally', status: 'Available', phone: '+91 90xxx xx661', email: 'ravi@shakti.example' },
+  { id: 'prakash', name: 'Prakash Goud', role: 'Site 3 head', site: 'Site 3 Medak', status: 'On site', note: 'on the floor, calls only', backup: 'sunil', phone: '+91 94xxx xx120', email: 'prakash@shakti.example' },
+  { id: 'arjun', name: 'Arjun Kumar', role: 'Site 2 head', site: 'Site 2 Hosur', status: 'Available', phone: '+91 96xxx xx845', email: 'arjun@shakti.example' },
+  { id: 'padma', name: 'Padma Sharma', role: 'Accounts', site: 'Site 1 Cherlapally', status: 'Available', phone: '+91 93xxx xx472', email: 'padma@shakti.example' },
+  { id: 'sunitha', name: 'Sunitha Nair', role: 'HR', site: 'Site 1 Cherlapally', status: 'On leave', until: '3 Nov', backup: 'padma', phone: '+91 95xxx xx939', email: 'sunitha@shakti.example' },
+];
+export const person = (id: string) => TEAM.find((p) => p.id === id)!;
+export const away = (p: Person) => p.status === 'On leave' || p.status === 'Travelling';
+
+export type Contact = { company: string; name: string; role: string; kind: 'Supplier' | 'Customer' | 'Internal'; city: string; phone: string; email: string; about: string };
+export const CONTACTS: Contact[] = [
+  { company: 'Vega RF Parts (demo)', name: 'Nikhil Joshi', role: 'Sales manager', kind: 'Supplier', city: 'Pune', phone: '+91 98xxx xx031', email: 'nikhil@vegarf.example', about: 'SMA connectors, RF cable assemblies' },
+  { company: 'AeroSpark Motors (demo)', name: 'Lakshmi Narayanan', role: 'Key accounts', kind: 'Supplier', city: 'Chennai', phone: '+91 97xxx xx772', email: 'lakshmi@aerospark.example', about: 'BLDC drone motors – PO-1172 open' },
+  { company: 'Godavari Paper Mills (demo)', name: 'Srinivas Rao', role: 'Dispatch & pricing', kind: 'Supplier', city: 'Rajahmundry', phone: '+91 94xxx xx505', email: 'srinivas@godavaripaper.example', about: 'Kraft paper for corrugation' },
+  { company: 'Deccan Corrugators (demo)', name: 'Farhan Ali', role: 'Owner', kind: 'Supplier', city: 'Medak', phone: '+91 90xxx xx118', email: 'farhan@deccancorr.example', about: '5-ply corrugated boxes' },
+  { company: 'Volta Cells (demo)', name: 'Deepa Menon', role: 'Sales', kind: 'Supplier', city: 'Chennai', phone: '+91 91xxx xx640', email: 'deepa@voltacells.example', about: 'LiPo battery packs' },
+  { company: 'Kessler Funktechnik GmbH (fictional)', name: 'Klaus Weber', role: 'Purchasing lead', kind: 'Customer', city: 'Stuttgart, Germany', phone: '+49 711 xxx x204', email: 'k.weber@kessler.example', about: 'EX-2041 RF modules' },
+  { company: 'Al Noor Agritech LLC (fictional)', name: 'Omar Haddad', role: 'Procurement', kind: 'Customer', city: 'Dubai, UAE', phone: '+971 50 xxx x889', email: 'omar@alnoor.example', about: 'EX-2044 agri drones' },
+  { company: 'Site 3 Medak (internal)', name: 'Prakash Goud', role: 'Site head', kind: 'Internal', city: 'Medak', phone: '+91 94xxx xx120', email: 'prakash@shakti.example', about: 'Packaging plant – stores and dispatch' },
+];
+
+export type Msg = { from: string; ago: string; text: string };
+export type Thread = { id: string; subject: string; company: string; key: RegExp; kind: 'Supplier' | 'Customer'; owner: string; waitingOn: 'us' | 'them'; days: number; summary: string; next: string; ref?: string; msgs: Msg[]; draft: string };
+export const THREADS: Thread[] = [
+  { id: 'TH-1', subject: 'SMA connectors – revised delivery for PO-1168', company: 'Vega RF Parts (demo)', key: /vega/, kind: 'Supplier', owner: 'kiran', waitingOn: 'us', days: 6, ref: 'PO-1168',
+    summary: 'Vega can ship 6,000 of 10,000 connectors now and the rest in 12 days; they need our OK on a split delivery.', next: 'Approve the split delivery so Site 1 line keeps running',
+    msgs: [{ from: 'Nikhil (Vega)', ago: '9 days ago', text: 'Plating line breakdown – full lot of 10,000 will slip by 12 days.' }, { from: 'Kiran (us)', ago: '8 days ago', text: 'Can you send part quantity first? Line needs 5,000 this week.' }, { from: 'Nikhil (Vega)', ago: '6 days ago', text: 'We can send 6,000 on Monday, balance 4,000 in 12 days. Please confirm split delivery and revised PO.' }],
+    draft: 'Hi Nikhil,\n\nThanks for the update. We confirm the split delivery against PO-1168: 6,000 pcs this Monday to Site 1 Cherlapally and the balance 4,000 pcs within 12 days. Price and terms stay as per the PO. Revised PO schedule attached.\n\nRegards,\nSunil Reddy\nShakti Electro-Pack' },
+  { id: 'TH-2', subject: 'PO-1172 BLDC motors – 30% advance', company: 'AeroSpark Motors (demo)', key: /aerospark|aero spark/, kind: 'Supplier', owner: 'kiran', waitingOn: 'us', days: 3, ref: 'PO-1172',
+    summary: 'AeroSpark will start the 160 motors for the drone order only after our 30% advance (₹3.29 L) is confirmed.', next: 'Ask Padma (Accounts) to release the advance, then confirm to AeroSpark',
+    msgs: [{ from: 'Lakshmi (AeroSpark)', ago: '5 days ago', text: 'PO-1172 received. As agreed, production starts on receipt of 30% advance.' }, { from: 'Lakshmi (AeroSpark)', ago: '3 days ago', text: 'Reminder – slot for your 160 motors is held only till Wednesday.' }],
+    draft: 'Hi Lakshmi,\n\nThe 30% advance of ₹3,29,000 against PO-1172 is being released today; UTR will follow by evening. Please hold our production slot and share the dispatch date.\n\nRegards,\nSunil Reddy\nShakti Electro-Pack' },
+  { id: 'TH-3', subject: 'EX-2041 – QA report and ship date', company: 'Kessler Funktechnik GmbH (fictional)', key: /kessler|klaus|german/, kind: 'Customer', owner: 'meena', waitingOn: 'us', days: 4, ref: 'EX-2041',
+    summary: 'Klaus wants the QA report for lot 3 and a firm ship date before he releases the LC amendment.', next: 'Send the QA report (98.1% first pass) and confirm ship date',
+    msgs: [{ from: 'Klaus (Kessler)', ago: '6 days ago', text: 'Please share QA report for lot 3 and confirm ETD.' }, { from: 'Meena (us)', ago: '5 days ago', text: 'Will revert by Friday.' }, { from: 'Klaus (Kessler)', ago: '4 days ago', text: 'Our bank needs the ETD to amend the LC. Please advise urgently.' }],
+    draft: 'Dear Klaus,\n\nPlease find attached the QA report for lot 3 (98.1% first-pass yield, NCR-07 closed). ETD is confirmed as per the order schedule; we will share the BL draft 3 days before shipment.\n\nBest regards,\nRavi Teja (for Meena Iyer)\nShakti Electro-Pack' },
+  { id: 'TH-4', subject: 'Kraft paper price revision from 1 Nov', company: 'Godavari Paper Mills (demo)', key: /godavari|kraft|paper/, kind: 'Supplier', owner: 'sunil', waitingOn: 'them', days: 2,
+    summary: 'Godavari announced a 6% kraft price rise; we asked them to hold the old price for the open 40-tonne order.', next: 'Wait for their reply; chase on Tuesday if nothing comes',
+    msgs: [{ from: 'Srinivas (Godavari)', ago: '4 days ago', text: 'Kraft paper prices revised +6% from 1 Nov due to pulp cost.' }, { from: 'Sunil (us)', ago: '2 days ago', text: 'Please hold the old price for our open 40 t order placed in October.' }],
+    draft: 'Hi Srinivas,\n\nFollowing up on our request to hold the October price for the open 40-tonne order. Please confirm by Tuesday so we can plan Site 3 production.\n\nRegards,\nSunil Reddy' },
+  { id: 'TH-5', subject: 'EX-2044 – LC amendment for shipment', company: 'Al Noor Agritech LLC (fictional)', key: /al noor|alnoor|omar|uae|dubai/, kind: 'Customer', owner: 'ravi', waitingOn: 'them', days: 1, ref: 'EX-2044',
+    summary: 'We sent the shipping documents; Omar is getting the LC amended for the new ship date.', next: 'Nothing for now – check tomorrow',
+    msgs: [{ from: 'Ravi (us)', ago: '2 days ago', text: 'Shipping docs and revised ETD attached. Please amend the LC.' }, { from: 'Omar (Al Noor)', ago: '1 day ago', text: 'Bank is processing the amendment, expect it in 2 days.' }],
+    draft: 'Hi Omar,\n\nThanks – please share the amended LC copy once issued so we can book the vessel.\n\nRegards,\nRavi Teja' },
+];
