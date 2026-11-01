@@ -17,6 +17,7 @@ General business knowledge questions (e.g. what is EMD, how CLRA works, GST rate
 Return {"reply": "...", "table": {"cols": [...], "rows": [[...]]} | null, "followups": ["...", "..."]}.
 - reply: max 4 short lines, markdown allowed ("- " bullets, **bold**). No long paragraphs. Never claim to have sent, filed, ordered or paid anything.
 - table: include only when the answer is a list of 3+ comparable things from the data (max 8 rows, max 5 columns). Otherwise null.
+- Money in Indian style: ₹ with lakh / crore (e.g. ₹1.86 Cr, ₹52.7 L). Never use million/Mn. For turnover eligibility use the 3-year AVERAGE turnover.
 - followups: 2-3 short next questions the owner may tap.`;
 
 const EXTRACT: Record<string, string> = {

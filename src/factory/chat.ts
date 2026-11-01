@@ -23,6 +23,10 @@ export function factoryRespond(raw: string): Resp | null {
     const mEnd = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() - d.getDate(); })();
     const [horizon, label] = /overdue|expired/.test(q) ? [0, 'already expired'] : /week/.test(q) ? [7, 'in the next 7 days'] : /quarter/.test(q) ? [qEnd, `this quarter (by ${fmtD(iso(qEnd))})`] : /90/.test(q) ? [90, 'in 90 days'] : /60/.test(q) ? [60, 'in 60 days'] : /this month/.test(q) ? [Math.max(mEnd, 30), 'in the next 30 days'] : [30, 'in the next 30 days'];
     const sname = site ? SITES[site].short : 'all sites';
+    const kindRe = /fire/.test(q) ? /fire/i : /pollution|\bcto\b|consent/.test(q) ? /pollution|cto/i : /trade/.test(q) ? /trade/i : /clra|contract labou?r/.test(q) ? /clra/i : /factory licen/.test(q) ? /factory licence/i : null;
+    if (kindRe) { const all = renewalRows(s).filter((x) => kindRe.test(x.r.kind) && (!site || x.r.site === site));
+      if (all.length) return R(`${all[0].r.kind}: ${all.length} in your register`, [{ type: 'table', cols: ['Site', 'Number', 'Authority', 'Expires', 'Status'], rows: all.map((x) => [x.r.site === 'All' ? 'Company' : SITES[x.r.site].short, x.r.number, x.r.authority, `${fmtD(x.d.validTill!)} · ${x.left < 0 ? `overdue ${-x.left}d` : `${x.left}d left`}`, x.left < 0 ? 'Overdue' : x.status]) }],
+        all.filter((x) => x.left <= 60 && x.status !== 'Filed – awaiting authority').slice(0, 2).map((x, i) => x.status.startsWith('Pack ready') ? { label: `Approve & file – ${x.r.site === 'All' ? 'Company' : SITES[x.r.site].short}`, kind: `fx:renew:${x.r.id}`, primary: i === 0 } : { label: `Draft renewal pack – ${x.r.site === 'All' ? 'Company' : SITES[x.r.site].short}`, kind: `fx:prep:${x.r.id}`, primary: i === 0 }), [{ label: 'Open licence register', to: '/renewals' }]); }
     const rows = renewalRows(s).filter((x) => x.left <= horizon && x.status !== 'Filed – awaiting authority' && (!site || x.r.site === site));
     if (!rows.length) return R(`Nothing at ${sname} expires ${label} that isn't already filed.`, [], [], [{ label: 'Open licence register', to: '/renewals' }]);
     const late = rows.filter((x) => x.late || x.left < 0);
@@ -62,6 +66,11 @@ export function factoryRespond(raw: string): Resp | null {
       { type: 'facts', items: [{ label: 'Progress', value: `${o.done.toLocaleString('en-IN')} of ${o.qty.toLocaleString('en-IN')} done`, tone: 'blue' }, { label: 'QA first-pass yield', value: `${((o.qaPass / o.qaInspected) * 100).toFixed(1)}%`, tone: o.ncr ? 'amber' : 'green' }, { label: 'Ships', value: fmtD(o.ship) }, { label: 'Customer waiting', value: `last update ${o.lastUpdateDays} days ago, ${o.mails.filter((m) => m.dir === 'in').length} unanswered mails`, tone: o.lastUpdateDays > 3 ? 'red' : 'amber' }] },
       { type: 'md', text: '```\n' + draftUpdate(o) + '\n```' },
     ], [{ label: 'Review & send (simulated)', kind: `fx:update:${o.id}`, primary: true }], [{ label: `Open ${o.id}`, to: `/customers?o=${o.id}` }]);
+  }
+  if (/waiting|repl(y|ied)|respond|heard from|chasing us/.test(q) && /customer|client|buyer|who/.test(q)) {
+    const w = [...ORDERS].sort((a, b) => b.lastUpdateDays - a.lastUpdateDays);
+    return R(`${w[0].contact} (${w[0].customer.replace(' (fictional)', '')}, ${w[0].country}) has waited longest – ${w[0].lastUpdateDays} days`, [{ type: 'table', cols: ['Customer', 'Order', 'Last update', 'Unanswered mails'], rows: w.map((o) => [`${o.contact} · ${o.country}`, o.id, s.updates[o.id] ? 'sent today' : `${o.lastUpdateDays} days ago`, `${o.mails.filter((m) => m.dir === 'in').length}`]) }],
+      w.filter((o) => !s.updates[o.id]).slice(0, 2).map((o, i) => ({ label: `Draft update to ${o.contact.split(' ')[0]}`, kind: `fx:update:${o.id}`, primary: i === 0 })), [{ label: 'Open customer orders', to: '/customers' }]);
   }
   if (/qa\b|quality|defect|ncr|yield|reject/.test(q) || (/orders?|shipment|customer/.test(q) && /status|where|late|due|export|international/.test(q))) {
     return R('Export orders and quality today', [{ type: 'table', cols: ['Order', 'Customer', 'Done', 'First-pass yield', 'Ships', 'Open issue'], rows: ORDERS.map((x) => [x.id, `${x.customer.replace(' (fictional)', '')}, ${x.country}`, `${Math.round((x.done / x.qty) * 100)}%`, `${((x.qaPass / x.qaInspected) * 100).toFixed(1)}%`, fmtD(x.ship), x.ncr || '—']) }],
